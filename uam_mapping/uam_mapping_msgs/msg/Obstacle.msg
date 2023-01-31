@@ -1,0 +1,4 @@
+uint8 obstacle_id
+geometry_msgs/Pose pose
+geometry_msgs/Twist twist
+shape_msgs/SolidPrimitive obstacle
