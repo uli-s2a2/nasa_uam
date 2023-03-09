@@ -1,0 +1,5 @@
+
+uint8 VEHICLE_INTERFACE_CMD_DISABLE = 0
+uint8 VEHICLE_INTERFACE_CMD_ENABLE = 1
+
+uint8 vehicle_cmd

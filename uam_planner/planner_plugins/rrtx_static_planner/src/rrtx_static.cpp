@@ -2,15 +2,6 @@
 #include "ompl/base/spaces/SE3StateSpace.h"
 
 
-#define RRTX_CALLBACK_RATE_MS 10
-#define RRTX_PLANNER_MAX_SOLVE_TIME_S 1.0
-#define RRTX_ARENA_X_BOUNDS_LOW 0.0
-#define RRTX_ARENA_X_BOUNDS_HIGH 5.0
-#define RRTX_ARENA_Y_BOUNDS_LOW 0.0
-#define RRTX_ARENA_Y_BOUNDS_HIGH 5.0
-#define RRTX_ARENA_Z_BOUNDS_LOW  0
-#define RRTX_ARENA_Z_BOUNDS_HIGH 5
-#define RRTX_ADMISSIBLE_WINDOW 0.1
 namespace rrtx_static_planner
 {
 
@@ -26,10 +17,12 @@ RrtxStatic::~RrtxStatic() noexcept
 			name_.c_str());
 }
 
-void RrtxStatic::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr &parent, std::string name)
+void RrtxStatic::configure(
+		const rclcpp_lifecycle::LifecycleNode::WeakPtr &parent,
+		std::string name)
 {
 	name_ = name;
-	global_frame_ = "map";
+	global_frame_ = "map_ned";
 	node_ = parent;
 	auto node = parent.lock();
 	clock_ = node->get_clock();
@@ -39,7 +32,7 @@ void RrtxStatic::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr &paren
 			name_.c_str());
 	auto qos_sub = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
 	obstacle_sub_ = node->create_subscription<uam_mapping_msgs::msg::ObstacleArray>(
-			"uam_mapping/obstacles", qos_sub,
+			"uam_mapping/obstacles", 10,
 			[this](const uam_mapping_msgs::msg::ObstacleArray::UniquePtr msg) {
 				for (const auto& obstacle : obstacles_) {
 					if (std::find(std::begin(msg->obstacle_ids), std::end(msg->obstacle_ids), obstacle.first) == std::end(msg->obstacle_ids))
@@ -66,8 +59,11 @@ void RrtxStatic::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr &paren
 									msg_obstacle.obstacle.dimensions[shape_msgs::msg::SolidPrimitive::BOX_X],
 									msg_obstacle.obstacle.dimensions[shape_msgs::msg::SolidPrimitive::BOX_Y],
 									msg_obstacle.obstacle.dimensions[shape_msgs::msg::SolidPrimitive::BOX_Z]);
+							// TODO: Find a better solution to scaling
+							body->setScaleDirty(1.3);
 							body->setPoseDirty(pose);
 							body->setDimensionsDirty(shape.get());
+							body->updateInternalData();
 							break;
 					}
 
@@ -133,13 +129,16 @@ nav_msgs::msg::Path RrtxStatic::create_path(
 {
 	ompl::base::ScopedState<ompl::base::SE3StateSpace> start_state(state_space_ptr_);
 	start_state->setXYZ(
-			start.pose.position.x,
 			start.pose.position.y,
-			start.pose.position.z);
+			start.pose.position.x,
+			-start.pose.position.z);
 	start_state->rotation().setIdentity();
 
 	ompl::base::ScopedState<ompl::base::SE3StateSpace> goal_state(state_space_ptr_);
-	goal_state->setXYZ(goal.pose.position.x, goal.pose.position.y, goal.pose.position.z);
+	goal_state->setXYZ(
+			goal.pose.position.y,
+			goal.pose.position.x,
+			-goal.pose.position.z);
 	goal_state->rotation().setIdentity();
 
 	prob_def_ptr_->setStartAndGoalStates(start_state, goal_state);
@@ -165,9 +164,10 @@ nav_msgs::msg::Path RrtxStatic::create_path(
 	for(size_t i = 0; i < path_ptr->getStateCount(); i++) {
 		auto state = path_ptr->getState(i)->as<ompl::base::SE3StateSpace::StateType>();
 		geometry_msgs::msg::PoseStamped pose;
-		pose.pose.position.x = state->getX();
-		pose.pose.position.y = state->getY();
-		pose.pose.position.z = state->getZ();
+		pose.header.frame_id = "map_ned";
+		pose.pose.position.x = state->getY();
+		pose.pose.position.y = state->getX();
+		pose.pose.position.z = -state->getZ();
 		path.poses.push_back(pose);
 	}
 
@@ -179,7 +179,7 @@ bool RrtxStatic::isStateValid(const ompl::base::State *state) const
 	const auto *se3state = state->as<ompl::base::SE3StateSpace::StateType>();
 
 	Eigen::Vector3d node(se3state->getX(), se3state->getY(), se3state->getZ());
-
+	Eigen::Vector3d corner1;
 	bool collision = false;
 	for (const auto& obstacle : obstacles_) {
 		collision |= obstacle.second->containsPoint(node);

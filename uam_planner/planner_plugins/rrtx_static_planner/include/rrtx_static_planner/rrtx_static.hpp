@@ -1,14 +1,9 @@
 #pragma once
-// ROS2 includes
-//#include <rclcpp/rclcpp.hpp>
-//#include <rclcpp/clock.hpp>
 
-//#include <nav_msgs/msg/path.hpp>
-//#include <nav_msgs/msg/odometry.hpp>
-//#include <px4_msgs/msg/rc_channels.hpp>
-//#include <px4_msgs/msg/vehicle_local_position.hpp>
-//#include <mav_rrtqx_msgs/msg/path.hpp>
-// other libraries
+#include "Eigen/Dense"
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp/clock.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "ompl/base/SpaceInformation.h"
 #include "ompl/base/StateSpace.h"
 #include "ompl/config.h"
@@ -16,19 +11,18 @@
 #include "ompl/geometric/planners/rrt/RRTXstatic.h"
 #include "ompl/geometric/planners/rrt/RRT.h"
 #include "geometric_shapes/bodies.h"
-#include "Eigen/Dense"
 #include "uam_planner/planner_base.hpp"
 #include "uam_planner/planner_exceptions.hpp"
 #include "uam_mapping_msgs/msg/obstacle_array.hpp"
 
 #define RRTX_CALLBACK_RATE_MS 10
-#define RRTX_PLANNER_MAX_SOLVE_TIME_S 1.0
-#define RRTX_ARENA_X_BOUNDS_LOW 0.0
+#define RRTX_PLANNER_MAX_SOLVE_TIME_S 5.0
+#define RRTX_ARENA_X_BOUNDS_LOW -0.5
 #define RRTX_ARENA_X_BOUNDS_HIGH 5.0
-#define RRTX_ARENA_Y_BOUNDS_LOW 0.0
+#define RRTX_ARENA_Y_BOUNDS_LOW -0.5
 #define RRTX_ARENA_Y_BOUNDS_HIGH 5.0
-#define RRTX_ARENA_Z_BOUNDS_LOW  0
-#define RRTX_ARENA_Z_BOUNDS_HIGH 5
+#define RRTX_ARENA_Z_BOUNDS_LOW  0.3
+#define RRTX_ARENA_Z_BOUNDS_HIGH 1.0
 #define RRTX_ADMISSIBLE_WINDOW 0.1
 
 namespace rrtx_static_planner

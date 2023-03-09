@@ -83,8 +83,8 @@ protected:
 	// Clock
 	rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
 
-	// TF Buffer
-	std::shared_ptr<tf2_ros::Buffer> tf_;
+	std::string global_frame_;
+	std::string robot_base_frame_;
 
 	// Path publisher for visualization
 	rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;

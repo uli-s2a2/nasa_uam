@@ -50,7 +50,6 @@ private:
 	// Class Variables
 	TransitionMap navigator_transitions_;
 	NavigatorMap navigators_;
-	NavigatorModeMuxer nav_mode_muxer_;
 	NavMode current_nav_mode_;
 	NavMode requested_nav_mode_;
 	bool nav_mode_complete_{false};

@@ -1,4 +1,5 @@
 #include <uam_control/qlearning_controller.hpp>
+#include "uam_util/qos_profiles.hpp"
 
 using namespace uam_control;
 using namespace rclcpp;
@@ -26,13 +27,11 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 	control_penalty_matrix_.diagonal() << 5.0, 5.0, 5.0;
 	start_time_ = this->get_clock()->now();
 	// ----------------------- Subscribers --------------------------
-	auto qos_sub = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
 	navigator_setpoint_sub_ =
 			this->create_subscription<nav_msgs::msg::Odometry>(
-					"/navigator/position_setpoint", qos_sub,
+					"/uam_navigator/position_setpoint", uam_util::px4_qos_sub,
 					[this](const nav_msgs::msg::Odometry::UniquePtr msg) {
-						if (vehicle_status_.arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED
-								&& vehicle_status_.nav_state == px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD) {
+						if (vehicle_status_.arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED) {
 							navigator_setpoint_.x() = msg->pose.pose.position.x;
 							navigator_setpoint_.y() = msg->pose.pose.position.y;
 							navigator_setpoint_.z() = msg->pose.pose.position.z;
@@ -45,29 +44,31 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 							publish_control_mellinger();
 						}
 					});
+	// TODO: remove dependence on px4_msgs
 	vehicle_status_sub_ =
-			this->create_subscription<px4_msgs::msg::VehicleStatus>("/fmu/out/vehicle_status", qos_sub,
+			this->create_subscription<px4_msgs::msg::VehicleStatus>("/fmu/out/vehicle_status", uam_util::px4_qos_sub,
 					[this](const px4_msgs::msg::VehicleStatus::UniquePtr msg) {
 						vehicle_status_ = *msg;
 					});
 	vehicle_odometry_sub_ =
-			this->create_subscription<px4_msgs::msg::VehicleOdometry>("/fmu/out/vehicle_odometry", qos_sub,
-					[this](const px4_msgs::msg::VehicleOdometry::UniquePtr msg) {
+			this->create_subscription<nav_msgs::msg::Odometry>("/uam_vehicle_interface/odometry", uam_util::px4_qos_sub,
+					[this](const nav_msgs::msg::Odometry::UniquePtr msg) {
 					    vehicle_odometry_ = *msg;
 					});
 	// ----------------------- Publishers ---------------------------
-	auto qos_pub = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().transient_local();
 
 	vehicle_attitude_setpoint_pub_ =
-			this->create_publisher<uam_control_msgs::msg::AttitudeSetpoint>("/uam_control/attitude_setpoint", qos_pub);
+			this->create_publisher<uam_control_msgs::msg::AttitudeSetpoint>("/uam_control/attitude_setpoint", uam_util::px4_qos_pub);
 	qlearning_status_pub_ =
-			this->create_publisher<uam_control_msgs::msg::QLearningStatus>("/uam_control/qlearning_status", qos_pub);
+			this->create_publisher<uam_control_msgs::msg::QLearningStatus>("/uam_control/qlearning_status", uam_util::px4_qos_pub);
 
 	auto timer_callback = [this]() -> void
 	{
 		if (can_learn()) {
 			//------- Q-Learning -------------
 			learn();
+
+			// TODO: publish outside of can_learn() and add a learn_enable bool in message
 			publish_qlearning_status();
 		} else {
 			start_time_ = this->get_clock()->now();
@@ -77,10 +78,10 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 	timer_ = this->create_wall_timer(std::chrono::milliseconds(QLEARNING_CALLBACK_RATE_MS), timer_callback);
 }
 
-bool QLearningController::can_learn()
+bool QLearningController::can_learn() const
 {
 	bool out;
-	out = vehicle_odometry_.position[2] > QLEARNING_MINIMUM_LEARNING_ALTITUDE &&
+	out =   abs(vehicle_odometry_.pose.pose.position.z) > learning_minimum_altitude_ &&
 			vehicle_status_.arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED &&
 			vehicle_status_.nav_state == px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD;
 	return out;
@@ -89,12 +90,12 @@ bool QLearningController::can_learn()
 void QLearningController::setup()
 {
 
-	state_vector_ << vehicle_odometry_.position[0] - navigator_setpoint_.x(),
-					 vehicle_odometry_.position[1] - navigator_setpoint_.y(),
-					 vehicle_odometry_.position[2] - navigator_setpoint_.z(),
-				 	 vehicle_odometry_.velocity[0] - navigator_setpoint_.vx(),
-				 	 vehicle_odometry_.velocity[1] - navigator_setpoint_.vy(),
-					 vehicle_odometry_.velocity[2] - navigator_setpoint_.vz();
+	state_vector_ << vehicle_odometry_.pose.pose.position.x - navigator_setpoint_.x(),
+					 vehicle_odometry_.pose.pose.position.y - navigator_setpoint_.y(),
+					 vehicle_odometry_.pose.pose.position.z - navigator_setpoint_.z(),
+				 	 vehicle_odometry_.twist.twist.linear.x - navigator_setpoint_.vx(),
+				 	 vehicle_odometry_.twist.twist.linear.y - navigator_setpoint_.vy(),
+					 vehicle_odometry_.twist.twist.linear.z - navigator_setpoint_.vz();
 }
 void QLearningController::learn()
 {
@@ -132,8 +133,8 @@ void QLearningController::learn()
 	// Actor
 	augmented_state_matrix_t Q_hat;
 	Q_hat << (vec_to_svec_transform_matrix_.transpose() *
-				(2 * critic_radial_basis_matrix_.transpose() * critic_weight_vector_)
-				).reshaped(AUGMENTED_STATE_VECTOR_SIZE,AUGMENTED_STATE_VECTOR_SIZE);
+			  (2 * critic_radial_basis_matrix_.transpose() * critic_weight_vector_))
+			  .reshaped(AUGMENTED_STATE_VECTOR_SIZE,AUGMENTED_STATE_VECTOR_SIZE);
 	control_matrix_t Quu = Q_hat.bottomRightCorner<QLEARNING_CONTROL_VECTOR_SIZE, QLEARNING_CONTROL_VECTOR_SIZE>();
 	control_vector_t actor_error = actor_weight_matrix_.transpose() * actor_radial_basis_matrix_ * state_vector_
 			+ Quu.inverse() * Q_hat.bottomLeftCorner<QLEARNING_CONTROL_VECTOR_SIZE, QLEARNING_STATE_VECTOR_SIZE>() * state_vector_;
@@ -142,7 +143,7 @@ void QLearningController::learn()
 	actor_weight_matrix_ += actor_weight_dot * time_resolution;
 
 	// Q value
-	Q_function_ = critic_weight_vector_.transpose() * critic_radial_basis_matrix_ * critic_augmented_state_kronecker_;
+	q_value_ = critic_weight_vector_.transpose() * critic_radial_basis_matrix_ * critic_augmented_state_kronecker_;
 }
 void QLearningController::compute_control()
 {
@@ -198,13 +199,17 @@ void QLearningController::publish_control_mellinger()
 	double thrust_proj;
 	Vector3d rpy;
 
-	Quaterniond q(vehicle_odometry_.q[0], vehicle_odometry_.q[1], vehicle_odometry_.q[2], vehicle_odometry_.q[3]);
+	Quaterniond q(vehicle_odometry_.pose.pose.orientation.w,
+	              vehicle_odometry_.pose.pose.orientation.x,
+	              vehicle_odometry_.pose.pose.orientation.y,
+	              vehicle_odometry_.pose.pose.orientation.z);
+
 	Matrix3d R = q.toRotationMatrix();
 	//Matrix3d R = q.toRotationMatrix();
 	z_axis = R.col(2);
 
 	//TODO common config params
-	thrust_des = control_vector_ + Vector3d(0,0,-9.80665);
+	thrust_des = control_vector_ + Vector3d(0.0,0.0,-9.80665);
 	thrust_proj = thrust_des.dot(-z_axis);
 
 	x_c_des << cos(yaw_des), sin(yaw_des), 0;
@@ -216,18 +221,18 @@ void QLearningController::publish_control_mellinger()
 	R_d.col(0) = x_B_desired;
 	R_d.col(1) = y_B_desired;
 	R_d.col(2) = z_B_desired;
-	Vector3d rpy_d = R_d.eulerAngles(0,1,2);
+	Vector3d ypr_d = R_d.eulerAngles(2,1,0);
 	Quaterniond q_d(R_d);
-//	e_R_matrix = (R_des.transpose() * R - R.transpose() * R_des);
-//	e_R << 0.5 * e_R_matrix(2,1),
-//			0.5 * e_R_matrix(0,2),
-//			0.5 * e_R_matrix(1,0);
-//	rpy_des = rpy - e_R;
+//	auto e_R_matrix = (R_d.transpose() * R - R.transpose() * R_d);
+//	auto e_R = Eigen::Vector3d(0.5 * e_R_matrix(2,1),
+//							   0.5 * e_R_matrix(0,2),
+//							   0.5 * e_R_matrix(1,0));
+//	auto rpy_des = rpy - e_R;
 	attitude_setpoint.header.stamp = this->get_clock()->now();
 	attitude_setpoint.header.frame_id = "map_ned";
-	attitude_setpoint.roll_body = rpy_d(0);
-	attitude_setpoint.pitch_body = rpy_d(1);
-	attitude_setpoint.yaw_body = rpy_d(2);
+	attitude_setpoint.roll_body = ypr_d(2);
+	attitude_setpoint.pitch_body = ypr_d(1);
+	attitude_setpoint.yaw_body = ypr_d(0);
 	attitude_setpoint.thrust_body_normalized = thrust_proj;
 	attitude_setpoint.q_d[0] = q_d.w();
 	attitude_setpoint.q_d[1] = q_d.x();
@@ -242,6 +247,7 @@ void QLearningController::publish_qlearning_status()
 
 	qlearning_status.stamp = this->get_clock()->now();
 	qlearning_status.start_time = start_time_;
+	qlearning_status.q_function = q_value_;
 	for(size_t i = 0; i < qlearning_status.actor_weight_matrix.size(); i++)
 		qlearning_status.actor_weight_matrix[i] = *(actor_weight_matrix_.data() + i);
 

@@ -17,12 +17,14 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(eigen3_cmake_module REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(px4_msgs REQUIRED)
-find_package(px4_ros_com REQUIRED)
 find_package(uam_navigator_msgs REQUIRED)
 find_package(uam_mapping_msgs REQUIRED)
 find_package(uam_control_msgs REQUIRED)
+find_package(uam_util REQUIRED)
 
 option(RUN_SITL "Target build is simulation" ON)## RUN IN SIMULATION
 
@@ -34,7 +36,7 @@ endif()
 include_directories(include)
 
 add_executable(qlearning_controller src/qlearning_controller.cpp)
-ament_target_dependencies(qlearning_controller rclcpp Eigen3 uam_control_msgs uam_navigator_msgs px4_msgs)
+ament_target_dependencies(qlearning_controller rclcpp Eigen3 uam_control_msgs uam_navigator_msgs px4_msgs uam_util)
 target_include_directories(qlearning_controller PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>

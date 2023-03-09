@@ -29,9 +29,9 @@ void Visualization::publish_obstacle_markers(const uam_mapping_msgs::msg::Obstac
 	{
 		visualization_msgs::msg::Marker obstacle_marker;
 		obstacle_marker.header.stamp = this->get_clock()->now();
-		obstacle_marker.header.frame_id = "map";
+		obstacle_marker.header.frame_id = msg->header.frame_id;
 		obstacle_marker.id = obstacle.obstacle_id;
-		obstacle_marker.pose.position =  obstacle.pose.position;
+		obstacle_marker.pose.position = obstacle.pose.position;
 		obstacle_marker.color.r = 1.0;
 		obstacle_marker.color.g = 0.0;
 		obstacle_marker.color.b = 0.0;

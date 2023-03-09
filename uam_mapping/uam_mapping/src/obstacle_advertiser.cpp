@@ -3,17 +3,29 @@
 using namespace uam_mapping;
 using namespace std::chrono;
 
-ObstacleAdvertiser::ObstacleAdvertiser() : Node("uam_obstacle_advertiser")
+ObstacleAdvertiser::ObstacleAdvertiser() : Node("static_obstacle_advertiser")
 {
 
-
 	// ----------------------- Publishers --------------------------
-	auto qos_pub = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().transient_local();
 	obstacle_array_pub_ =
-			this->create_publisher<uam_mapping_msgs::msg::ObstacleArray>("uam_mapping/obstacles", qos_pub);
+			this->create_publisher<uam_mapping_msgs::msg::ObstacleArray>("uam_mapping/obstacles", 10);
 
 	// ----------------------- Subscribers --------------------------
-	auto qos_sub = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
+	declare_parameter("obstacle_ids", rclcpp::ParameterValue(std::vector<std::string>()));
+	declare_parameter("obstacles_x", rclcpp::ParameterValue(std::vector<double>()));
+	declare_parameter("obstacles_y", rclcpp::ParameterValue(std::vector<double>()));
+
+	get_parameter("obstacle_ids", obstacle_ids_);
+	get_parameter("obstacles_x", obstacles_x_);
+	get_parameter("obstacles_y", obstacles_y_);
+
+	if (obstacle_ids_.size() == obstacles_x_.size() && obstacles_x_.size() == obstacles_y_.size()){
+		for (size_t i = 0; i < obstacle_ids_.size(); i++) {
+			obstacles_map_.insert({obstacle_ids_[i], std::make_pair(obstacles_x_[i], obstacles_y_[i])});
+		}
+	} else {
+		RCLCPP_ERROR(get_logger(), "Invalid size of obstacle parameter vectors");
+	}
 
 	auto timer_callback = [this]() -> void
 	{
@@ -27,53 +39,20 @@ void ObstacleAdvertiser::publish_obstacles()
 {
 	uam_mapping_msgs::msg::ObstacleArray obstacles;
 
-	uam_mapping_msgs::msg::Obstacle obstacle1;
-	uam_mapping_msgs::msg::Obstacle obstacle2;
-	uam_mapping_msgs::msg::Obstacle obstacle3;
-	uam_mapping_msgs::msg::Obstacle obstacle4;
-	uam_mapping_msgs::msg::Obstacle obstacle5;
-
 	obstacles.header.frame_id = "map";
 	obstacles.header.stamp = this->get_clock()->now();
-	obstacle1.obstacle.type = shape_msgs::msg::SolidPrimitive::BOX;
-	obstacle1.obstacle_id = 0;
-	obstacle1.obstacle.dimensions = {0.5, 0.5, 5.0};
-	obstacle1.pose.position.x = 1.25;
-	obstacle1.pose.position.y = 3.75;
-	obstacle1.pose.position.z = obstacle1.obstacle.dimensions[2] / 2.0;
-//
-//	shapes::Box obstacle_shape(0.5, 0.5, 5.0);
-//	bodies::Box obstacle1(&obstacle_shape);
-//	bodies::Box obstacle2(&obstacle_shape);
-//	bodies::Box obstacle3(&obstacle_shape);
-//	bodies::Box obstacle4(&obstacle_shape);
-//	bodies::Box obstacle5(&obstacle_shape);
-//
-//	Eigen::Isometry3d obstacle_pose;
-//	obstacle_pose.setIdentity();
-//
-//	obstacle_pose.translation() = Eigen::Vector3d(1.25,3.75,obstacle_shape.size[2] / 2.0);
-//	obstacle1.setPose(obstacle_pose);
-//	obstacle_pose.translation() = Eigen::Vector3d(3.75,3.75,obstacle_shape.size[2] / 2.0);
-//	obstacle2.setPose(obstacle_pose);
-//	obstacle_pose.translation() = Eigen::Vector3d(3.75,1.25,obstacle_shape.size[2] / 2.0);
-//	obstacle3.setPose(obstacle_pose);
-//	obstacle_pose.translation() = Eigen::Vector3d(1.25,1.25,obstacle_shape.size[2] / 2.0);
-//	obstacle4.setPose(obstacle_pose);
-//	obstacle_pose.translation() = Eigen::Vector3d(2.5,2.5,obstacle_shape.size[2] / 2.0);
-//	obstacle5.setPose(obstacle_pose);
-//
-//	obstacle1.setScale(1.1);
-//	obstacle2.setScale(1.1);
-//	obstacle3.setScale(1.1);
-//	obstacle4.setScale(1.1);
-//	obstacle5.setScale(1.1);
 
-	obstacles.obstacles.push_back(obstacle1);
-//	obstacles_.obstacles.push_back(obstacle2);
-//	obstacles_.obstacles.push_back(obstacle3);
-//	obstacles_.obstacles.push_back(obstacle4);
-//	obstacles_.obstacles.push_back(obstacle5);
+	for (auto const & obstacle : obstacles_map_) {
+		uam_mapping_msgs::msg::Obstacle obstacle_msg;
+		obstacle_msg.obstacle.type = shape_msgs::msg::SolidPrimitive::BOX;
+		obstacle_msg.obstacle_id = std::stoi(obstacle.first);
+		obstacle_msg.obstacle.dimensions = {0.4064, 0.4064, 1.016};
+		obstacle_msg.pose.position.x = obstacle.second.first;
+		obstacle_msg.pose.position.y = obstacle.second.second;
+		obstacle_msg.pose.position.z = obstacle_msg.obstacle.dimensions[2] / 2.0;
+		obstacles.obstacles.push_back(obstacle_msg);
+	}
+
 	obstacle_array_pub_->publish(obstacles);
 }
 

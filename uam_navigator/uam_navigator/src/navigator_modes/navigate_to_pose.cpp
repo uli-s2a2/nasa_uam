@@ -22,10 +22,10 @@ bool NavigateToPose::configure()
 	node->get_parameter("navigate_to_pose.waypoint_position_tolerance", waypoint_position_tolerance_);
 	node->declare_parameter("navigate_to_pose.goal_position_tolerance", 0.1);
 	node->get_parameter("navigate_to_pose.goal_position_tolerance", goal_position_tolerance_);
-	node->declare_parameter("navigate_to_pose.goal_position_tolerance", 0.1);
+	node->declare_parameter("navigate_to_pose.goal_velocity_tolerance", 0.1);
 	node->get_parameter("navigate_to_pose.goal_velocity_tolerance", goal_velocity_tolerance_);
 
-	planner_client_ptr_ = rclcpp_action::create_client<ActionT>(node, planner_name_);
+	planner_client_ptr_ = rclcpp_action::create_client<ActionT>(node, "compute_path_to_pose");
 
 	return true;
 }
@@ -34,6 +34,8 @@ bool NavigateToPose::activate(const nav_msgs::msg::Odometry & start, const nav_m
 {
 	if (!path_requested_){
 		auto node = node_.lock();
+		RCLCPP_INFO(node->get_logger(), "Activating navigate to pose flight mode");
+
 		start_pose_.header.stamp = node->get_clock()->now();
 		start_pose_.pose = start.pose.pose;
 		goal_pose_.header.stamp = goal.header.stamp;
@@ -54,6 +56,7 @@ bool NavigateToPose::activate(const nav_msgs::msg::Odometry & start, const nav_m
 				std::bind(&NavigateToPose::result_callback, this, std::placeholders::_1);
 		this->planner_client_ptr_->async_send_goal(planner_goal_msg, send_goal_options);
 		current_path_waypoint_ = 0;
+		path_requested_ = true;
 	}
 	return path_received_;
 }
@@ -88,6 +91,8 @@ void NavigateToPose::result_callback(const GoalHandleActionT::WrappedResult & re
 }
 bool NavigateToPose::deactivate()
 {
+	auto node = node_.lock();
+	RCLCPP_INFO(node->get_logger(), "Deactivating navigate to pose flight mode");
 	start_pose_ = geometry_msgs::msg::PoseStamped();
 	goal_pose_ = geometry_msgs::msg::PoseStamped();
 	path_received_ = false;

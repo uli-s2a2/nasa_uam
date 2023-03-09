@@ -74,7 +74,6 @@ public:
 
 	virtual bool on_configure(
 			const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-			NavigatorModeMuxer * nav_mode_muxer,
 			const NavMode & nav_mode) = 0;
 	virtual bool on_activate(const nav_msgs::msg::Odometry & start, const nav_msgs::msg::Odometry & goal) = 0;
 	virtual bool on_deactivate() = 0;
@@ -93,11 +92,9 @@ public:
 protected:
 	bool on_configure(
 			const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-			NavigatorModeMuxer * nav_mode_muxer,
 			const NavMode & nav_mode) final
 	{
 		node_ = parent;
-		nav_mode_muxer_ = nav_mode_muxer;
 		nav_mode_ = nav_mode;
 
 		bool ok = true;
@@ -110,13 +107,9 @@ protected:
 	bool on_activate(const nav_msgs::msg::Odometry & start, const nav_msgs::msg::Odometry & goal) final
 	{
 		bool ok = true;
-		if (nav_mode_muxer_->is_navigating()) {
-			return false;
-		}
 		if (!activate(start, goal)) {
-			return false;
+			ok = false;
 		}
-		nav_mode_muxer_->start_navigating(nav_mode_);
 		return ok;
 	}
 
@@ -124,9 +117,8 @@ protected:
 	{
 		bool ok = true;
 		if(!deactivate()) {
-			return false;
+			ok = false;
 		}
-		nav_mode_muxer_->stop_navigating(nav_mode_);
 		return ok;
 	}
 
@@ -136,7 +128,6 @@ protected:
 		if(!cleanup()) {
 			ok = false;
 		}
-		nav_mode_muxer_ = nullptr;
 		return ok;
 	}
 
@@ -145,7 +136,6 @@ protected:
 	virtual bool deactivate() = 0;
 	virtual bool cleanup() = 0;
 
-	NavigatorModeMuxer * nav_mode_muxer_{nullptr};
 	NavMode nav_mode_{NAV_MODE_IDLE};
 	rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
 }; // class NavigatorMode

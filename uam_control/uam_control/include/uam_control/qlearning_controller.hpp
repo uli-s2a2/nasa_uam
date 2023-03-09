@@ -21,7 +21,7 @@ namespace uam_control
 #define QLEARNING_CONTROL_VECTOR_SIZE 3
 #define AUGMENTED_STATE_VECTOR_SIZE (QLEARNING_STATE_VECTOR_SIZE + QLEARNING_CONTROL_VECTOR_SIZE)
 #define CRITIC_WEIGHT_VECTOR_SIZE (AUGMENTED_STATE_VECTOR_SIZE)*(AUGMENTED_STATE_VECTOR_SIZE + 1) / 2
-#define QLEARNING_MINIMUM_LEARNING_ALTITUDE 0.2
+#define QLEARNING_MINIMUM_LEARNING_ALTITUDE 0.6
 
 class mavState: public Eigen::Matrix<double, QLEARNING_STATE_VECTOR_SIZE, 1> {
 public:
@@ -106,13 +106,13 @@ private:
 	// ----------------------- Subscribers --------------------------
 	rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr navigator_setpoint_sub_;
 	rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr vehicle_status_sub_;
-	rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr vehicle_odometry_sub_;
+	rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr vehicle_odometry_sub_;
 
 	// Message Callback Variables
 	mavState navigator_setpoint_;
 	px4_msgs::msg::VehicleStatus vehicle_status_;
 	px4_msgs::msg::RcChannels vehicle_channels_;
-	px4_msgs::msg::VehicleOdometry vehicle_odometry_;
+	nav_msgs::msg::Odometry vehicle_odometry_;
 
 	// Class Variables
 	px4_msgs::msg::RcChannels rc_channels_;
@@ -131,17 +131,18 @@ private:
 	critic_radial_basis_matrix_t critic_radial_basis_matrix_;
 	actor_weight_matrix_t actor_weight_matrix_;
 	actor_radial_basis_matrix_t actor_radial_basis_matrix_;
+	double learning_minimum_altitude_{QLEARNING_MINIMUM_LEARNING_ALTITUDE};
 	double critic_convergence_rate{0.1};
 	double actor_convergence_rate{0.01};
 	double time_resolution{ QLEARNING_CALLBACK_RATE_MS / 1000.0 };
-	double Q_function_{};
+	double q_value_{};
 	svec_matrix_t vec_to_svec_transform_matrix_;
 
 	// Class methods
 	void setup();
 	void learn();
 	void compute_control();
-	bool can_learn();
+	bool can_learn() const;
 
 	critic_radial_basis_matrix_t compute_critic_radial_basis_matrix(double t);
 	actor_radial_basis_matrix_t compute_actor_radial_basis_matrix(double t);

@@ -22,7 +22,7 @@ find_package(px4_msgs REQUIRED)
 find_package(px4_ros_com REQUIRED)
 find_package(uam_navigator REQUIRED)
 find_package(uam_mapping REQUIRED)
-find_package(uam_controllers REQUIRED)
+find_package(uam_control REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

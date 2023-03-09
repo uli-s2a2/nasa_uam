@@ -14,7 +14,7 @@
   <depend>px4_ros_com</depend>
   <depend>uam_navigator</depend>
   <depend>uam_mapping</depend>
-  <depend>uam_controllers</depend>
+  <depend>uam_control</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

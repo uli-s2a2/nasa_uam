@@ -3,7 +3,7 @@
 namespace uam_navigator
 {
 Navigator::Navigator(const rclcpp::NodeOptions & options)
-: rclcpp_lifecycle::LifecycleNode("uam_navigator", "", options)
+: rclcpp_lifecycle::LifecycleNode("navigator", "", options)
 {
 
 }
@@ -22,19 +22,20 @@ Navigator::on_configure(const rclcpp_lifecycle::State &state)
 //	navigators_.insert({NavMode::NAV_MODE_LAND, std::make_unique<Land>()});
 	navigators_.insert({NavMode::NAV_MODE_LOITER, std::make_unique<Loiter>()});
 	navigators_.insert({NavMode::NAV_MODE_NAVIGATE_TO_POSE, std::make_unique<NavigateToPose>()});
+	position_setpoint_publisher_ = node->create_publisher<nav_msgs::msg::Odometry>("/uam_navigator/position_setpoint", uam_util::px4_qos_pub);
 
-	position_setpoint_publisher_ = create_publisher<nav_msgs::msg::Odometry>("/uam_navigator/position_setpoint", uam_util::px4_qos_pub);
-
-	navigators_[NAV_MODE_TAKEOFF]->on_configure(node, &nav_mode_muxer_, NAV_MODE_TAKEOFF);
-	navigators_[NAV_MODE_LAND]->on_configure(node, &nav_mode_muxer_, NAV_MODE_LAND);
-	navigators_[NAV_MODE_LOITER]->on_configure(node, &nav_mode_muxer_, NAV_MODE_LOITER);
-	navigators_[NAV_MODE_NAVIGATE_TO_POSE]->on_configure(node, &nav_mode_muxer_, NAV_MODE_NAVIGATE_TO_POSE);
+	navigators_[NAV_MODE_TAKEOFF]->on_configure(node, NAV_MODE_TAKEOFF);
+//	navigators_[NAV_MODE_LAND]->on_configure(node, &nav_mode_muxer_, NAV_MODE_LAND);
+	navigators_[NAV_MODE_LOITER]->on_configure(node, NAV_MODE_LOITER);
+	navigators_[NAV_MODE_NAVIGATE_TO_POSE]->on_configure(node, NAV_MODE_NAVIGATE_TO_POSE);
 	navigator_transitions_[NAV_MODE_TAKEOFF] = {NAV_MODE_LOITER, NAV_MODE_LAND};
 	navigator_transitions_[NAV_MODE_NAVIGATE_TO_POSE] = {NAV_MODE_LOITER, NAV_MODE_LAND};
 	navigator_transitions_[NAV_MODE_LOITER] = {NAV_MODE_NAVIGATE_TO_POSE, NAV_MODE_LAND};
+	navigator_transitions_[NAV_MODE_IDLE] = {NAV_MODE_TAKEOFF};
 
 	timer_ = node->create_wall_timer(std::chrono::milliseconds(10),
 								  std::bind(&Navigator::on_loop, this));
+
 	vehicle_odometry_sub_ =
 			node->create_subscription<nav_msgs::msg::Odometry>(
 					"/uam_vehicle_interface/odometry",
@@ -43,14 +44,17 @@ Navigator::on_configure(const rclcpp_lifecycle::State &state)
 					{
 						vehicle_odom_ = *msg;
 					});
+
 	navigator_command_sub_ =
 			node->create_subscription<uam_navigator_msgs::msg::NavCmd>(
 					"/uam_navigator/command",
 					10,
 					[this](const uam_navigator_msgs::msg::NavCmd::UniquePtr msg)
 					{
-						requested_nav_mode_ =static_cast<NavMode>(msg->nav_cmd);
+						requested_nav_mode_ = static_cast<NavMode>(msg->nav_cmd);
+						std::cout << "Requested navigator command: " << requested_nav_mode_ << std::endl;
 					});
+
 	current_nav_mode_ = NAV_MODE_IDLE;
 	requested_nav_mode_ = NAV_MODE_IDLE;
 	return uam_util::CallbackReturn::SUCCESS;
@@ -115,6 +119,7 @@ Navigator::on_shutdown(const rclcpp_lifecycle::State &state)
 
 void Navigator::on_loop()
 {
+
 	auto node = shared_from_this();
 
 	// Auto transition
@@ -122,9 +127,9 @@ void Navigator::on_loop()
 		if (navigators_[current_nav_mode_]->mission_complete(vehicle_odom_)) {
 			switch (current_nav_mode_) {
 				case NAV_MODE_TAKEOFF:
+					requested_nav_mode_ = NAV_MODE_LOITER;
 				case NAV_MODE_NAVIGATE_TO_POSE:
 					requested_nav_mode_ = NAV_MODE_LOITER;
-					break;
 				case NAV_MODE_IDLE:
 				case NAV_MODE_LAND:
 				case NAV_MODE_LOITER:
@@ -151,10 +156,10 @@ void Navigator::on_loop()
 				{
 					nav_msgs::msg::Odometry goal;
 					goal.header.stamp = node->get_clock()->now();
-					goal.header.frame_id = "map";
-					goal.pose.pose.position.x = 1.0;
-					goal.pose.pose.position.y = 1.0;
-					goal.pose.pose.position.z = 1.0;
+					goal.header.frame_id = "map_ned";
+					goal.pose.pose.position.x = 4.7;
+					goal.pose.pose.position.y = 4.7;
+					goal.pose.pose.position.z = -0.6;
 					activate_request_success = navigators_[requested_nav_mode_]->on_activate(vehicle_odom_, goal);
 					break;
 				}
@@ -166,7 +171,10 @@ void Navigator::on_loop()
 				}
 			}
 			if (activate_request_success) {
-				navigators_[current_nav_mode_]->on_deactivate();
+				std::cout << "Activate request success... " << std::endl;
+				if (current_nav_mode_ != NAV_MODE_IDLE) {
+					navigators_[current_nav_mode_]->on_deactivate();
+				}
 				current_nav_mode_ = requested_nav_mode_;
 			}
 		} else {

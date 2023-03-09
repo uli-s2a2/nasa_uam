@@ -26,6 +26,8 @@ PlannerServer::PlannerServer(const rclcpp::NodeOptions &options)
   default_types_{"rrtx_static_planner::RrtxStatic"}
 {
 	declare_parameter("planner_plugins", default_ids_);
+	declare_parameter("global_frame", rclcpp::ParameterValue(std::string("map")));
+	declare_parameter("robot_base_frame", rclcpp::ParameterValue(std::string("base_link")));
 //	declare_parameter("expected_planner_frequency", 1.0);
 
 	get_parameter("planner_plugins", planner_ids_);
@@ -46,6 +48,8 @@ PlannerServer::on_configure(const rclcpp_lifecycle::State &state)
 {
 	RCLCPP_INFO(get_logger(), "Configuring");
 
+	get_parameter("global_frame", global_frame_);
+	get_parameter("robot_base_frame", robot_base_frame_);
 	planner_types_.resize(planner_ids_.size());
 
 	auto node = shared_from_this();
@@ -87,7 +91,7 @@ PlannerServer::on_configure(const rclcpp_lifecycle::State &state)
 //		max_planner_duration_ = 0.0;
 //	}
 
-	path_publisher_ = create_publisher<nav_msgs::msg::Path>("plan", 1);
+	path_publisher_ = create_publisher<nav_msgs::msg::Path>("planner_server/path", 1);
 
 	action_server_pose_ = std::make_unique<ActionServerToPose>(
 			shared_from_this(),
@@ -115,6 +119,7 @@ PlannerServer::on_activate(const rclcpp_lifecycle::State &)
 
 	auto node = shared_from_this();
 
+
 	return uam_util::CallbackReturn::SUCCESS;
 }
 
@@ -141,7 +146,6 @@ PlannerServer::on_cleanup(const rclcpp_lifecycle::State &state)
 
 	action_server_pose_.reset();
 	path_publisher_.reset();
-	tf_.reset();
 
 	PlannerMap::iterator it;
 	for (it = planners_.begin(); it != planners_.end(); ++it) {

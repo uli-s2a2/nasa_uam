@@ -9,6 +9,8 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>eigen3_cmake_module</depend>
+  <depend>eigen</depend>
   <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
   <depend>uam_control_msgs</depend>
@@ -16,6 +18,7 @@
   <depend>px4_msgs</depend>
   <depend>uam_util</depend>
   <depend>nav_msgs</depend>
+  <depend>uam_vehicle_interface_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

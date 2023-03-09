@@ -24,6 +24,9 @@ bool Loiter::configure()
 
 bool Loiter::activate(const nav_msgs::msg::Odometry & start, const nav_msgs::msg::Odometry & goal)
 {
+	auto node = node_.lock();
+	RCLCPP_INFO(node->get_logger(), "Activating loiter flight mode");
+
 	(void)goal;
 	loiter_position_.header.frame_id = start.header.frame_id;
 	loiter_position_.header.stamp = start.header.stamp;
@@ -35,6 +38,8 @@ bool Loiter::activate(const nav_msgs::msg::Odometry & start, const nav_msgs::msg
 
 bool Loiter::deactivate()
 {
+	auto node = node_.lock();
+	RCLCPP_INFO(node->get_logger(), "Deactivating loiter flight mode");
 	loiter_position_ = geometry_msgs::msg::PoseStamped();
 	return true;
 }
