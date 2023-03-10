@@ -30,18 +30,6 @@ add_executable(visualization src/visualization.cpp)
 ament_target_dependencies(visualization rclcpp shape_msgs uam_mapping_msgs visualization_msgs nav_msgs)
 install(TARGETS visualization DESTINATION lib/${PROJECT_NAME})
 
-############
-# Install ##
-############
-
-install(DIRECTORY
-        config
-        DESTINATION share/${PROJECT_NAME})
-
-install(DIRECTORY
-        launch
-        DESTINATION share/${PROJECT_NAME})
-
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

@@ -62,17 +62,4 @@ target_include_directories(navigator_main PUBLIC
 target_link_libraries(navigator_main navigator_core)
 install(TARGETS navigator_main DESTINATION lib/${PROJECT_NAME})
 
-
-############
-# Install ##
-############
-
-install(DIRECTORY
-        config
-        DESTINATION share/${PROJECT_NAME})
-
-install(DIRECTORY
-        launch
-        DESTINATION share/${PROJECT_NAME})
-
 ament_package()
