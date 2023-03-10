@@ -13,7 +13,7 @@ Navigator::~Navigator()
 }
 
 uam_util::CallbackReturn
-Navigator::on_configure(const rclcpp_lifecycle::State &state)
+Navigator::on_configure(const rclcpp_lifecycle::State &)
 {
 	RCLCPP_INFO(get_logger(), "Configuring");
 
@@ -72,7 +72,7 @@ Navigator::on_activate(const rclcpp_lifecycle::State &)
 }
 
 uam_util::CallbackReturn
-Navigator::on_deactivate(const rclcpp_lifecycle::State &state)
+Navigator::on_deactivate(const rclcpp_lifecycle::State &)
 {
 	RCLCPP_INFO(get_logger(), "Deactivating");
 
@@ -87,7 +87,7 @@ Navigator::on_deactivate(const rclcpp_lifecycle::State &state)
 }
 
 uam_util::CallbackReturn
-Navigator::on_cleanup(const rclcpp_lifecycle::State &state)
+Navigator::on_cleanup(const rclcpp_lifecycle::State &)
 {
 	RCLCPP_INFO(get_logger(), "Cleaning up");
 
@@ -106,7 +106,7 @@ Navigator::on_cleanup(const rclcpp_lifecycle::State &state)
 }
 
 uam_util::CallbackReturn
-Navigator::on_shutdown(const rclcpp_lifecycle::State &state)
+Navigator::on_shutdown(const rclcpp_lifecycle::State &)
 {
 	RCLCPP_INFO(get_logger(), "Shutting down");
 
