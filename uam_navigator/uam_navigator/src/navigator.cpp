@@ -157,8 +157,8 @@ void Navigator::on_loop()
 					nav_msgs::msg::Odometry goal;
 					goal.header.stamp = node->get_clock()->now();
 					goal.header.frame_id = "map_ned";
-					goal.pose.pose.position.x = 4.7;
-					goal.pose.pose.position.y = 4.7;
+					goal.pose.pose.position.x = 3.9624;
+					goal.pose.pose.position.y = 3.3528;
 					goal.pose.pose.position.z = -0.6;
 					activate_request_success = navigators_[requested_nav_mode_]->on_activate(vehicle_odom_, goal);
 					break;

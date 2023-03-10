@@ -46,7 +46,7 @@ void ObstacleAdvertiser::publish_obstacles()
 		uam_mapping_msgs::msg::Obstacle obstacle_msg;
 		obstacle_msg.obstacle.type = shape_msgs::msg::SolidPrimitive::BOX;
 		obstacle_msg.obstacle_id = std::stoi(obstacle.first);
-		obstacle_msg.obstacle.dimensions = {0.4064, 0.4064, 1.016};
+		obstacle_msg.obstacle.dimensions = {0.4191, 0.4191, 0.9779};
 		obstacle_msg.pose.position.x = obstacle.second.first;
 		obstacle_msg.pose.position.y = obstacle.second.second;
 		obstacle_msg.pose.position.z = obstacle_msg.obstacle.dimensions[2] / 2.0;
