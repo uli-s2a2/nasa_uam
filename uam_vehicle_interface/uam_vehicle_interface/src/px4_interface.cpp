@@ -70,14 +70,14 @@ Px4Interface::Px4Interface()
 					uam_util::px4_qos_sub,
 					[this](const px4_msgs::msg::RcChannels::UniquePtr msg)
 					{
-						channels_ = *msg;
-						if (msg->channels[msg->function[px4_msgs::msg::RcChannels::FUNCTION_OFFBOARD]] >= 0.75) {
-							if (!offboard_control_enable_) {
-								enable_offboard_control();
-							}
-						} else {
-							offboard_control_enable_ = false;
-						}
+//						channels_ = *msg;
+//						if (msg->channels[msg->function[px4_msgs::msg::RcChannels::FUNCTION_OFFBOARD]] >= 0.75) {
+//							if (!offboard_control_enable_) {
+//								enable_offboard_control();
+//							}
+//						} else {
+//							offboard_control_enable_ = false;
+//						}
 					});
 	vehicle_interface_commands_sub_ =
 			this->create_subscription<uam_vehicle_interface_msgs::msg::VehicleInterfaceCommands>(
