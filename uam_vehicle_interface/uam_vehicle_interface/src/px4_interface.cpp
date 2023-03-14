@@ -88,7 +88,6 @@ Px4Interface::Px4Interface()
 						switch (msg->vehicle_cmd) {
 							case uam_vehicle_interface_msgs::msg::VehicleInterfaceCommands::VEHICLE_INTERFACE_CMD_ENABLE:
 								offboard_control_enable_ = true;
-//									enable_offboard_control();
 								break;
 							case uam_vehicle_interface_msgs::msg::VehicleInterfaceCommands::VEHICLE_INTERFACE_CMD_DISABLE:
 								offboard_control_enable_ = false;
