@@ -58,7 +58,7 @@ private:
 	bool offboard_control_enable_{false};
 	uint8_t offboard_counter_{0};
 	float mass_{0.73f};
-	float max_thrust_{53.0f};
+	float max_thrust_{50.0f};
 	float min_thrust_{0.1079f};
 	float motor_constant_{0.00000584};
 	float motor_velocity_armed_{100.0f};
