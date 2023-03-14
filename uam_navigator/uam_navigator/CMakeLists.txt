@@ -61,5 +61,8 @@ target_include_directories(navigator_main PUBLIC
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 target_link_libraries(navigator_main navigator_core)
 install(TARGETS navigator_main DESTINATION lib/${PROJECT_NAME})
-
+install(TARGETS navigator_core navigator_modes
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
 ament_package()
