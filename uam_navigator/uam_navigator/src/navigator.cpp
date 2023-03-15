@@ -22,7 +22,7 @@ Navigator::on_configure(const rclcpp_lifecycle::State &)
 //	navigators_.insert({NavMode::NAV_MODE_LAND, std::make_unique<Land>()});
 	navigators_.insert({NavMode::NAV_MODE_LOITER, std::make_unique<Loiter>()});
 	navigators_.insert({NavMode::NAV_MODE_NAVIGATE_TO_POSE, std::make_unique<NavigateToPose>()});
-	position_setpoint_publisher_ = node->create_publisher<nav_msgs::msg::Odometry>("/uam_navigator/position_setpoint", uam_util::px4_qos_pub);
+	position_setpoint_publisher_ = node->create_publisher<nav_msgs::msg::Odometry>("/uam_navigator/position_setpoint", 10);
 
 	navigators_[NAV_MODE_TAKEOFF]->on_configure(node, NAV_MODE_TAKEOFF);
 //	navigators_[NAV_MODE_LAND]->on_configure(node, &nav_mode_muxer_, NAV_MODE_LAND);
@@ -39,7 +39,7 @@ Navigator::on_configure(const rclcpp_lifecycle::State &)
 	vehicle_odometry_sub_ =
 			node->create_subscription<nav_msgs::msg::Odometry>(
 					"/uam_vehicle_interface/odometry",
-					uam_util::px4_qos_sub,
+					10,
 					[this](const nav_msgs::msg::Odometry::UniquePtr msg)
 					{
 						vehicle_odom_ = *msg;

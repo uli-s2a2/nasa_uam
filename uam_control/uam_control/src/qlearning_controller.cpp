@@ -29,7 +29,7 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 	// ----------------------- Subscribers --------------------------
 	navigator_setpoint_sub_ =
 			this->create_subscription<nav_msgs::msg::Odometry>(
-					"/uam_navigator/position_setpoint", uam_util::px4_qos_sub,
+					"/uam_navigator/position_setpoint", 10,
 					[this](const nav_msgs::msg::Odometry::UniquePtr msg) {
 						if (vehicle_status_.arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED) {
 							navigator_setpoint_.x() = msg->pose.pose.position.x;
@@ -51,16 +51,16 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 						vehicle_status_ = *msg;
 					});
 	vehicle_odometry_sub_ =
-			this->create_subscription<nav_msgs::msg::Odometry>("/uam_vehicle_interface/odometry", uam_util::px4_qos_sub,
+			this->create_subscription<nav_msgs::msg::Odometry>("/uam_vehicle_interface/odometry", 10,
 					[this](const nav_msgs::msg::Odometry::UniquePtr msg) {
 					    vehicle_odometry_ = *msg;
 					});
 	// ----------------------- Publishers ---------------------------
 
 	vehicle_attitude_setpoint_pub_ =
-			this->create_publisher<uam_control_msgs::msg::AttitudeSetpoint>("/uam_control/attitude_setpoint", uam_util::px4_qos_pub);
+			this->create_publisher<uam_control_msgs::msg::AttitudeSetpoint>("/uam_control/attitude_setpoint", 10);
 	qlearning_status_pub_ =
-			this->create_publisher<uam_control_msgs::msg::QLearningStatus>("/uam_control/qlearning_status", uam_util::px4_qos_pub);
+			this->create_publisher<uam_control_msgs::msg::QLearningStatus>("/uam_control/qlearning_status", 10);
 
 	auto timer_callback = [this]() -> void
 	{

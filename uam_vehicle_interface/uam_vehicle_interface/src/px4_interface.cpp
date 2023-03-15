@@ -26,7 +26,7 @@ Px4Interface::Px4Interface()
 					"/fmu/in/vehicle_local_position_setpoint", uam_util::px4_qos_pub);
 	vehicle_odometry_pub_ =
 			this->create_publisher<nav_msgs::msg::Odometry>(
-					"/uam_vehicle_interface/odometry", uam_util::px4_qos_pub);
+					"/uam_vehicle_interface/odometry", 10);
 	tf_dynamic_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 	tf_static_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 	// ----------------------- Subscribers --------------------------
@@ -40,7 +40,7 @@ Px4Interface::Px4Interface()
 	attitude_setpoint_sub_ =
 			this->create_subscription<uam_control_msgs::msg::AttitudeSetpoint>(
 					"/uam_control/attitude_setpoint",
-					uam_util::px4_qos_sub,
+					10,
 					std::bind(&Px4Interface::publish_attitude_setpoint, this, std::placeholders::_1));
 	vehicle_status_sub_ =
 			this->create_subscription<px4_msgs::msg::VehicleStatus>(
