@@ -59,6 +59,7 @@ def generate_launch_description():
 
     vehicle_interface_node = Node(
         package='uam_vehicle_interface',
+        name='uam_vehicle_interface',
         executable='px4_interface',
         output='screen',
         parameters=[params_file])
@@ -116,10 +117,10 @@ def generate_launch_description():
     ld.add_action(planner_node)
     ld.add_action(visualization_node)
     ld.add_action(vehicle_interface_node)
-    ld.add_action(rviz2_node)
     ld.add_action(register_event_handler_for_navigator_inactive_state)
     ld.add_action(register_event_handler_for_planner_inactive_state)
     ld.add_action(navigator_configure_trans_event)
     ld.add_action(planner_configure_trans_event)
+    ld.add_action(rviz2_node)
 
     return ld

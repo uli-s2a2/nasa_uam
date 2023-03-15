@@ -9,8 +9,8 @@ Panels:
         - /Grid1
         - /MarkerArray1
         - /MarkerArray1/Topic1
-        - /Axes1
         - /Path1
+        - /Axes1
       Splitter Ratio: 0.5
     Tree Height: 668
   - Class: rviz_common/Selection
@@ -51,20 +51,13 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        {}
+        obstacles: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /uam_visualization/obstacle_markers
-      Value: true
-    - Class: rviz_default_plugins/Axes
-      Enabled: true
-      Length: 1
-      Name: Axes
-      Radius: 0.10000000149011612
-      Reference Frame: base_link
       Value: true
     - Alpha: 1
       Buffer Length: 1
@@ -93,6 +86,13 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /planner_server/path
+      Value: true
+    - Class: rviz_default_plugins/Axes
+      Enabled: true
+      Length: 1
+      Name: Axes
+      Radius: 0.10000000149011612
+      Reference Frame: base_link
       Value: true
   Enabled: true
   Global Options:

@@ -57,12 +57,13 @@ private:
 	// Class Variables
 	bool offboard_control_enable_{false};
 	uint8_t offboard_counter_{0};
-	float mass_{0.73f};
-	float max_thrust_{50.0f};
-	float min_thrust_{0.1079f};
-	float motor_constant_{0.00000584};
-	float motor_velocity_armed_{100.0f};
-	float motor_input_scaling_{1000.0f};
+	double vehicle_mass_;
+	double motor_thrust_max_;
+	double motor_thrust_armed_;
+	double motor_constant_;
+	double motor_input_scaling_;
+	double motor_velocity_armed_{100.0f};
+	std::string environment_;
 
 	// ROS2 Variables
 	px4_msgs::msg::BatteryStatus battery_status_;
@@ -77,9 +78,10 @@ private:
 	void vehicle_odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
 	void publish_offboard_control_mode();
 	void publish_vehicle_command(uint16_t command, float param1 = 0.0,float param2 = 0.0);
-	float compute_relative_thrust(const float &collective_thrust) const;
+	double compute_relative_thrust(const double &collective_thrust) const;
 	void enable_offboard_control();
 	void setup_static_transforms();
+	void setup_parameters();
 	void arm();
 	void disarm();
 };

@@ -7,6 +7,7 @@ namespace uam_vehicle_interface
 Px4Interface::Px4Interface()
 		: rclcpp::Node("uam_vehicle_interface")
 {
+	setup_parameters();
 	// ----------------------- Publishers --------------------------
 	vehicle_command_pub_ =
 			this->create_publisher<px4_msgs::msg::VehicleCommand>(
@@ -97,6 +98,28 @@ Px4Interface::Px4Interface()
 
 	setup_static_transforms();
 }
+
+void Px4Interface::setup_parameters()
+{
+	try {
+		declare_parameter("environment", rclcpp::ParameterValue("Vehicle"));
+		declare_parameter("vehicle_mass", rclcpp::ParameterValue(0.73));
+		declare_parameter("motor_thrust_max", rclcpp::ParameterValue(12.5));
+		declare_parameter("motor_thrust_armed", rclcpp::ParameterValue(0.026975));
+		declare_parameter("motor_constant", rclcpp::ParameterValue(0.00000584));
+		declare_parameter("motor_input_scaling", rclcpp::ParameterValue(1000.0));
+
+		get_parameter("environment", environment_);
+		get_parameter("vehicle_mass", vehicle_mass_);
+		get_parameter("motor_thrust_max", motor_thrust_max_);
+		get_parameter("motor_thrust_armed", motor_thrust_armed_);
+		get_parameter("motor_constant", motor_constant_);
+		get_parameter("motor_input_scaling", motor_input_scaling_);
+	} catch (const rclcpp::ParameterTypeException & ex) {
+		RCLCPP_ERROR(get_logger(), "Parameter type exception:  %s", ex.what());
+	}
+}
+
 
 /**
 * @brief Publish the offboard control mode.
@@ -191,12 +214,15 @@ void Px4Interface::publish_attitude_setpoint(const uam_control_msgs::msg::Attitu
 		} else if (offboard_counter_ < 11) {
 			offboard_counter_++;
 		}
-		vehicle_attitude.timestamp = int(get_clock()->now().nanoseconds() / 1000);
-		vehicle_attitude.roll_body = msg->roll_body;
-		vehicle_attitude.pitch_body = msg->pitch_body;
-		vehicle_attitude.yaw_body = msg->yaw_body;
-		vehicle_attitude.q_d = msg->q_d;
-		vehicle_attitude.thrust_body[2] = fminf(-compute_relative_thrust(msg->thrust_body_normalized * mass_), 0.0);
+		vehicle_attitude.timestamp = static_cast<int>(get_clock()->now().nanoseconds() / 1000);
+		vehicle_attitude.roll_body = static_cast<float>(msg->roll_body);
+		vehicle_attitude.pitch_body = static_cast<float>(msg->pitch_body);
+		vehicle_attitude.yaw_body = static_cast<float>(msg->yaw_body);
+		vehicle_attitude.q_d[0] = static_cast<float>(msg->q_d[0]);
+		vehicle_attitude.q_d[1] = static_cast<float>(msg->q_d[1]);
+		vehicle_attitude.q_d[2] = static_cast<float>(msg->q_d[2]);
+		vehicle_attitude.q_d[3] = static_cast<float>(msg->q_d[3]);
+		vehicle_attitude.thrust_body[2] = static_cast<float>(fmin(-compute_relative_thrust(msg->thrust_body_normalized * vehicle_mass_), 0.0));
 
 		publish_offboard_control_mode();
 		vehicle_attitude_setpoint_pub_->publish(vehicle_attitude);
@@ -312,26 +338,27 @@ void Px4Interface::enable_offboard_control()
 	}
 }
 
-float Px4Interface::compute_relative_thrust(const float &collective_thrust) const
+double Px4Interface::compute_relative_thrust(const double &collective_thrust) const
 {
-#ifdef RUN_SITL
-	float motor_speed = sqrtf(collective_thrust / (4 * motor_constant_));
-	float thrust_command = (motor_speed - motor_velocity_armed_) / motor_input_scaling_;
+	if (environment_ == "SITL") {
+		double motor_speed = sqrt(collective_thrust / (4.0 * motor_constant_));
+		double thrust_command = (motor_speed - motor_velocity_armed_) / motor_input_scaling_;
 //	float rel_thrust = (collective_thrust - min_thrust_) / (max_thrust_ - min_thrust_);
 //	return (0.54358075f * rel_thrust + 0.f * sqrtf(3.6484f * rel_thrust + 0.00772641f) - 0.021992793f);
-	return thrust_command;
-#else
-	if (battery_status_.voltage_filtered_v > 14.0) {
-		float rel_thrust = (collective_thrust - min_thrust_) / (max_thrust_ - min_thrust_);
-		return (0.54358075 * rel_thrust + 0.25020242 * sqrt(3.6484 * rel_thrust + 0.00772641) - 0.021992793) *
-				(1 - 0.0779 * (battery_status_.voltage_filtered_v - 16.0));
-	} else {
-		float rel_thrust = (collective_thrust - min_thrust_) / (max_thrust_ - min_thrust_);
-		return (0.54358075 * rel_thrust + 0.25020242 * sqrt(3.6484 * rel_thrust + 0.00772641) - 0.021992793);
+		return thrust_command;
+
+	} else if (environment_ == "Vehicle") {
+		double rel_thrust = ((collective_thrust / 4.0) - motor_thrust_armed_) / (motor_thrust_max_ - motor_thrust_armed_);
+
+		if (battery_status_.voltage_filtered_v > 14.0) {
+			return (0.54358075 * rel_thrust + 0.25020242 * sqrt(3.6484 * rel_thrust + 0.00772641) - 0.021992793) *
+					(1.0 - 0.0779 * (battery_status_.voltage_filtered_v - 16.0));
+		} else {
+			return (0.54358075 * rel_thrust + 0.25020242 * sqrt(3.6484 * rel_thrust + 0.00772641) - 0.021992793);
+		}
 	}
-#endif
 }
-}
+} // namespace uam_vehicle_interface
 
 int main(int argc, char *argv[])
 {
