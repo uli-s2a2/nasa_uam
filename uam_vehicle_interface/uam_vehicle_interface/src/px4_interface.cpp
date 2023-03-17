@@ -115,6 +115,10 @@ void Px4Interface::setup_parameters()
 		get_parameter("motor_thrust_armed", motor_thrust_armed_);
 		get_parameter("motor_constant", motor_constant_);
 		get_parameter("motor_input_scaling", motor_input_scaling_);
+
+		RCLCPP_INFO(get_logger(), "Loading parameters");
+		RCLCPP_INFO(get_logger(), "Environment is %s", environment_.c_str());
+
 	} catch (const rclcpp::ParameterTypeException & ex) {
 		RCLCPP_ERROR(get_logger(), "Parameter type exception:  %s", ex.what());
 	}

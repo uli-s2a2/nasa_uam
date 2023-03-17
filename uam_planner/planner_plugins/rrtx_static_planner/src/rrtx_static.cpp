@@ -30,6 +30,9 @@ void RrtxStatic::configure(
 	RCLCPP_INFO(
 			logger_, "Configuring plugin %s of type RrtxStatic",
 			name_.c_str());
+	node->declare_parameter(name + ".obstacle_scaling", rclcpp::ParameterValue(1.3));
+	node->get_parameter(name + ".obstacle_scaling", obstacle_scaling_);
+
 	obstacle_sub_ = node->create_subscription<uam_mapping_msgs::msg::ObstacleArray>(
 			"uam_mapping/obstacles", 10,
 			[this](const uam_mapping_msgs::msg::ObstacleArray::UniquePtr msg) {
@@ -59,7 +62,7 @@ void RrtxStatic::configure(
 									msg_obstacle.obstacle.dimensions[shape_msgs::msg::SolidPrimitive::BOX_Y],
 									msg_obstacle.obstacle.dimensions[shape_msgs::msg::SolidPrimitive::BOX_Z]);
 							// TODO: Find a better solution to scaling
-							body->setScaleDirty(1.3);
+							body->setScaleDirty(obstacle_scaling_);
 							body->setPoseDirty(pose);
 							body->setDimensionsDirty(shape.get());
 							body->updateInternalData();

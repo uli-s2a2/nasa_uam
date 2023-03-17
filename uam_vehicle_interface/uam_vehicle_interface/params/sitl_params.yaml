@@ -1,7 +1,7 @@
 uam_vehicle_interface:
   ros__parameters:
     environment: "SITL"
-    vehicle_mass: 1.52
+    vehicle_mass: 1.56
     motor_thrust_max: 12.5
     motor_thrust_armed: 0.026975
     motor_constant: 0.00000584
@@ -10,8 +10,8 @@ uam_vehicle_interface:
 navigator:
   ros__parameters:
     takeoff:
-      altitude: 0.6
-      position_tolerance: 0.05
+      altitude: 0.7
+      position_tolerance: 0.1
       velocity_tolerance: 0.3
     navigate_to_pose:
       planner: "RrtxStatic"
@@ -24,11 +24,15 @@ planner_server:
     planner_plugins: ["RrtxStatic"]
     global_frame: "map"
     robot_base_frame: "base_link"
+    RrtxStatic:
+      obstacle_scaling: 2.0
 
 static_obstacle_advertiser:
   ros__parameters:
-    obstacle_ids: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
-                   '13', '14', '15', '16', '17', '18', '19', '20', '21']
+    obstacle_ids: ['1', '2', '3', '4', '5', '6',
+                   '7', '8', '9', '10', '11', '12',
+                   '13', '14', '15', '16', '17', '18',
+                   '19', '20', '21']
     obstacles_x: [ 1.524,
                    2.1336,
                    2.7432,

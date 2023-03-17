@@ -62,6 +62,7 @@ protected:
 	ompl::base::PlannerPtr planner_ptr_;
 
 	ObstacleMap obstacles_;
+	double obstacle_scaling_;
 	uint8_t current_waypoint_{0};
 	double admissible_window_{0};
 
