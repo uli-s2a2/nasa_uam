@@ -30,7 +30,6 @@ void RrtxStatic::configure(
 	RCLCPP_INFO(
 			logger_, "Configuring plugin %s of type RrtxStatic",
 			name_.c_str());
-	auto qos_sub = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
 	obstacle_sub_ = node->create_subscription<uam_mapping_msgs::msg::ObstacleArray>(
 			"uam_mapping/obstacles", 10,
 			[this](const uam_mapping_msgs::msg::ObstacleArray::UniquePtr msg) {

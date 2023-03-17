@@ -1,7 +1,7 @@
 uam_vehicle_interface:
   ros__parameters:
     environment: "Vehicle"
-    vehicle_mass: 0.73
+    vehicle_mass: 0.673
     motor_thrust_max: 12.5
     motor_thrust_armed: 0.026975
     motor_constant: 0.00000584
@@ -19,13 +19,11 @@ navigator:
       goal_position_tolerance: 0.1
       goal_velocity_tolerance: 0.1
 
-
 planner_server:
   ros__parameters:
     planner_plugins: ["RrtxStatic"]
     global_frame: "map"
     robot_base_frame: "base_link"
-
 
 static_obstacle_advertiser:
   ros__parameters:

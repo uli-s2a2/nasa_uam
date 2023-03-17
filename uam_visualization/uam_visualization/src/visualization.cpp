@@ -7,19 +7,17 @@ using std::placeholders::_1;
 Visualization::Visualization() : Node("uam_visualization")
 {
 	// ----------------------- Publishers --------------------------
-	auto qos_pub = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().transient_local();
 	obstacle_marker_pub_ =
-			this->create_publisher<visualization_msgs::msg::MarkerArray>("uam_visualization/obstacle_markers", qos_pub);
+			this->create_publisher<visualization_msgs::msg::MarkerArray>("uam_visualization/obstacle_markers", 10);
 	explored_path_pub_ =
-			this->create_publisher<nav_msgs::msg::Path>("uam_visualization/explored_path", qos_pub);
+			this->create_publisher<nav_msgs::msg::Path>("uam_visualization/explored_path", 10);
 	frontier_path_pub_ =
-			this->create_publisher<nav_msgs::msg::Path>("uam_visualization/frontier_path", qos_pub);
+			this->create_publisher<nav_msgs::msg::Path>("uam_visualization/frontier_path", 10);
 
 	// ----------------------- Subscribers --------------------------
-	auto qos_sub = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
 	obstacle_array_sub_ =
 			this->create_subscription<uam_mapping_msgs::msg::ObstacleArray>(
-					"uam_mapping/obstacles", qos_sub, std::bind(&Visualization::publish_obstacle_markers, this, _1));
+					"uam_mapping/obstacles", 10, std::bind(&Visualization::publish_obstacle_markers, this, _1));
 }
 
 void Visualization::publish_obstacle_markers(const uam_mapping_msgs::msg::ObstacleArray::SharedPtr msg)
