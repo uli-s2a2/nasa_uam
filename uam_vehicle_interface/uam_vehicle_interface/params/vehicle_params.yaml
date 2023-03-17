@@ -10,8 +10,8 @@ uam_vehicle_interface:
 navigator:
   ros__parameters:
     takeoff:
-      altitude: 0.7
-      position_tolerance: 0.15
+      altitude: 0.75
+      position_tolerance: 0.2
       velocity_tolerance: 0.3
     navigate_to_pose:
       planner: "RrtxStatic"
