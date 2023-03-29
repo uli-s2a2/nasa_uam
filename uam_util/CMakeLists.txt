@@ -14,6 +14,8 @@ set(dependencies
   lifecycle_msgs
   rclcpp_action
   rclcpp_lifecycle
+  bondcpp
+  bond
 )
 
 include_directories(include)

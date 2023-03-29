@@ -1,6 +1,6 @@
 #pragma once
 #include <rclcpp/rclcpp.hpp>
-#include <geometric_shapes/bodies.h>
+#include "geometric_shapes/bodies.h"
 #include <uam_mapping_msgs/msg/obstacle.hpp>
 #include <uam_mapping_msgs/msg/obstacle_array.hpp>
 

@@ -1,7 +1,11 @@
+#include <functional>
+#include <memory>
+#include <thread>
 #include "uam_navigator/navigator_modes/navigator_mode.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "uam_planner_msgs/action/compute_path_to_pose.hpp"
+
 
 namespace uam_navigator
 {
@@ -21,7 +25,7 @@ protected:
 	bool cleanup() override;
 	nav_msgs::msg::Odometry compute_position_setpoint(const nav_msgs::msg::Odometry & current_odom) override;
 	bool mission_complete(const nav_msgs::msg::Odometry & current_odom) override;
-	void goal_response_callback(std::shared_future<GoalHandleActionT::SharedPtr> future);
+	void goal_response_callback(const GoalHandleActionT::SharedPtr & goal_handle);
 	void result_callback(const GoalHandleActionT::WrappedResult & result);
 	void update_waypoint(const nav_msgs::msg::Odometry & current_odom);
 

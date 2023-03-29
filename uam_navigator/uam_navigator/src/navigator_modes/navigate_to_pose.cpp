@@ -1,4 +1,4 @@
-#include "navigate_to_pose.hpp"
+#include "uam_navigator/navigator_modes/navigate_to_pose.hpp"
 
 namespace uam_navigator
 {
@@ -50,10 +50,8 @@ bool NavigateToPose::activate(const nav_msgs::msg::Odometry & start, const nav_m
 		RCLCPP_INFO(node->get_logger(), "Requesting path from planner (%s)", planner_name_.c_str());
 
 		auto send_goal_options = rclcpp_action::Client<ActionT>::SendGoalOptions();
-		send_goal_options.goal_response_callback =
-				std::bind(&NavigateToPose::goal_response_callback, this, std::placeholders::_1);
-		send_goal_options.result_callback =
-				std::bind(&NavigateToPose::result_callback, this, std::placeholders::_1);
+		send_goal_options.goal_response_callback = std::bind(&NavigateToPose::goal_response_callback, this, std::placeholders::_1);
+		send_goal_options.result_callback = std::bind(&NavigateToPose::result_callback, this, std::placeholders::_1);
 		this->planner_client_ptr_->async_send_goal(planner_goal_msg, send_goal_options);
 		current_path_waypoint_ = 0;
 		path_requested_ = true;
@@ -61,13 +59,13 @@ bool NavigateToPose::activate(const nav_msgs::msg::Odometry & start, const nav_m
 	return path_received_;
 }
 
-void NavigateToPose::goal_response_callback(std::shared_future<GoalHandleActionT::SharedPtr> future)
+void NavigateToPose::goal_response_callback(const GoalHandleActionT::SharedPtr & goal_handle)
 {
 	auto node = node_.lock();
-	auto goal_handle = future.get();
 	if (!goal_handle) {
 		RCLCPP_ERROR(node->get_logger(), "Goal was rejected by server");
-	} else {
+	} 
+	else {
 		RCLCPP_INFO(node->get_logger(), "Goal accepted by server, waiting for result");
 	}
 }
