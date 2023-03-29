@@ -92,6 +92,7 @@ typedef Eigen::Matrix<double, CRITIC_WEIGHT_VECTOR_SIZE, CRITIC_WEIGHT_VECTOR_SI
 typedef Eigen::Matrix<double, QLEARNING_STATE_VECTOR_SIZE, QLEARNING_CONTROL_VECTOR_SIZE> actor_weight_matrix_t;
 typedef Eigen::Matrix<double, QLEARNING_STATE_VECTOR_SIZE, QLEARNING_STATE_VECTOR_SIZE> actor_radial_basis_matrix_t;
 typedef Eigen::Matrix<double, CRITIC_WEIGHT_VECTOR_SIZE, AUGMENTED_STATE_VECTOR_SIZE * AUGMENTED_STATE_VECTOR_SIZE> svec_matrix_t;
+typedef mavState state_vector_t;
 
 class QLearningController : public rclcpp::Node
 {
@@ -109,7 +110,7 @@ private:
 	rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr vehicle_odometry_sub_;
 
 	// Message Callback Variables
-	mavState navigator_setpoint_;
+	nav_msgs::msg::Odometry navigator_setpoint_;
 	px4_msgs::msg::VehicleStatus vehicle_status_;
 	px4_msgs::msg::RcChannels vehicle_channels_;
 	nav_msgs::msg::Odometry vehicle_odometry_;
@@ -119,7 +120,7 @@ private:
 	uint8_t mav_id_;
 	rclcpp::TimerBase::SharedPtr timer_;
 	rclcpp::Time start_time_;
-	mavState state_vector_; // x,y,z,vx,vy,vz
+	state_vector_t state_vector_; // x,y,z,vx,vy,vz
 	control_vector_t control_vector_;
 	augmented_state_vector_t augmented_state_vector_;
 	state_matrix_t state_penalty_matrix_;
@@ -131,23 +132,28 @@ private:
 	critic_radial_basis_matrix_t critic_radial_basis_matrix_;
 	actor_weight_matrix_t actor_weight_matrix_;
 	actor_radial_basis_matrix_t actor_radial_basis_matrix_;
-	double learning_minimum_altitude_{QLEARNING_MINIMUM_LEARNING_ALTITUDE};
-	double critic_convergence_rate{0.1};
-	double actor_convergence_rate{0.01};
-	double time_resolution{ QLEARNING_CALLBACK_RATE_MS / 1000.0 };
-	double q_value_{};
+	double critic_error_1_;
+	double critic_error_2_;
+	control_vector_t actor_error_;
+	double minimum_altitude_for_learning_;
+	double critic_convergence_rate_;
+	double actor_convergence_rate_;
+	double learning_update_frequency_;
+	double time_resolution_;
+	double quality_value_;
 	svec_matrix_t vec_to_svec_transform_matrix_;
+	bool is_setpoint_new_{true};
 
 	// Class methods
-	void setup();
 	void learn();
-	void compute_control();
+	control_vector_t compute_control(const state_vector_t& state_vector);
+	state_vector_t compute_state_vector() const;
 	bool can_learn() const;
 
 	critic_radial_basis_matrix_t compute_critic_radial_basis_matrix(double t);
 	actor_radial_basis_matrix_t compute_actor_radial_basis_matrix(double t);
 	void compute_svec_matrix();
-	void publish_control_mellinger();
+	void publish_control_mellinger(const control_vector_t& control_vector);
 	void publish_qlearning_status();
 //	void publish_control_fbl();
 //	void arm() const;

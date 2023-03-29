@@ -17,13 +17,8 @@
 
 #define RRTX_CALLBACK_RATE_MS 10
 #define RRTX_PLANNER_MAX_SOLVE_TIME_S 5.0
-#define RRTX_ARENA_X_BOUNDS_LOW -0.5
-#define RRTX_ARENA_X_BOUNDS_HIGH 4.2672
-#define RRTX_ARENA_Y_BOUNDS_LOW -0.5
-#define RRTX_ARENA_Y_BOUNDS_HIGH 4.8768
-#define RRTX_ARENA_Z_BOUNDS_LOW  0.3048
-#define RRTX_ARENA_Z_BOUNDS_HIGH 1.0
-#define RRTX_ADMISSIBLE_WINDOW 0.1
+#define RRTX_ARENA_BOUNDS_LOW_DEFAULT {-0.5, -0.5, 1.0}
+#define RRTX_ARENA_BOUNDS_HIGH_DEFAULT {4.2672, 4.8768, 1.0}
 
 namespace rrtx_static_planner
 {
@@ -62,9 +57,11 @@ protected:
 	ompl::base::PlannerPtr planner_ptr_;
 
 	ObstacleMap obstacles_;
+	std::vector<double> planner_map_bounds_low_;
+	std::vector<double> planner_map_bounds_high_;
+
 	double obstacle_scaling_;
-	uint8_t current_waypoint_{0};
-	double admissible_window_{0};
+	double planner_solve_time_;
 
 	// Class functions
 	bool isStateValid(const ompl::base::State *state) const;

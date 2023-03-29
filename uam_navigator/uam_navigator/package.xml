@@ -10,13 +10,17 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>eigen3_cmake_module</buildtool_depend>
 
+
   <depend>eigen</depend>
   <depend>std_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>uam_navigator_msgs</depend>
   <depend>uam_controllers_msgs</depend>
   <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
   <depend>rclcpp_action</depend>
+  <depend>pluginlib</depend>
+  <depend>builtin_interfaces</depend>
   <depend>uam_util</depend>
   <depend>uam_vehicle_interface</depend>
   <depend>uam_planner_msgs</depend>

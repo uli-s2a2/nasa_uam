@@ -1,6 +1,0 @@
-uint8 NAV_CMD_TAKEOFF = 1
-#uint8 NAV_CMD_LAND = 2
-uint8 NAV_CMD_LOITER = 3
-uint8 NAV_CMD_NAVIGATE_TO_POSE = 4
-
-uint8 nav_cmd

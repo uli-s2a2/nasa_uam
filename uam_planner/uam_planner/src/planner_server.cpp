@@ -22,7 +22,7 @@ namespace uam_planner
 PlannerServer::PlannerServer(const rclcpp::NodeOptions &options)
 : rclcpp_lifecycle::LifecycleNode("planner_server", "", options),
   planner_loader_("uam_planner", "uam_planner::PlannerBase"),
-  default_ids_{"RrtxStatic"},
+  default_ids_{"rrtx_static"},
   default_types_{"rrtx_static_planner::RrtxStatic"}
 {
 	declare_parameter("planner_plugins", default_ids_);

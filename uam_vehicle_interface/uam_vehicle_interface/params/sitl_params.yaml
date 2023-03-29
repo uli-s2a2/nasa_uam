@@ -13,19 +13,33 @@ navigator:
       altitude: 0.7
       position_tolerance: 0.1
       velocity_tolerance: 0.3
+      update_frequency: 30.0 # Hz
     navigate_to_pose:
-      planner: "RrtxStatic"
+      planner: "rrtx_static"
       waypoint_position_tolerance: 0.1
       goal_position_tolerance: 0.1
       goal_velocity_tolerance: 0.1
+      update_frequency: 100.0 # Hz
+
+uam_control:
+  ros__parameters:
+    rrtx_static:
+      critic_convergence_rate: 1.0
+      actor_convergence_rate: 0.2
+      minimum_altitude_for_learning: 0.6
+      learning_update_frequency: 100.0 # Hz
 
 planner_server:
   ros__parameters:
-    planner_plugins: ["RrtxStatic"]
+    planner_plugins: ["rrtx_static"]
     global_frame: "map"
     robot_base_frame: "base_link"
-    RrtxStatic:
+    rrtx_static:
+      plugin: "rrtx_static_planner::RrtxStatic"
       obstacle_scaling: 2.0
+      bounds_low:  [-0.5, -0.5, 0.6]
+      bounds_high: [4.2672, 4.8768, 1.2]
+      solve_time: 0.5 # Seconds
 
 static_obstacle_advertiser:
   ros__parameters:

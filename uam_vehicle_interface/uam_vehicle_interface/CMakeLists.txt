@@ -1,21 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
 project(uam_vehicle_interface)
 
-# Default to C99
-if(NOT CMAKE_C_STANDARD)
-  set(CMAKE_C_STANDARD 99)
-endif()
-
-# Default to C++17
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-
-
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
@@ -33,6 +18,7 @@ find_package(tf2_ros REQUIRED)
 find_package(px4_ros_com REQUIRED)
 
 include_directories(include)
+
 set(PX4_INTERFACE_DEPS
   Eigen3
   rclcpp
@@ -54,9 +40,9 @@ target_include_directories(px4_interface
         $<INSTALL_INTERFACE:include>)
 install(TARGETS px4_interface DESTINATION lib/${PROJECT_NAME})
 
+
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY params DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY rviz DESTINATION share/${PROJECT_NAME})
-
 
 ament_package()

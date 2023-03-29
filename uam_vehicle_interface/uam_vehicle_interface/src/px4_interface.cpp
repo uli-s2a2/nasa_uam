@@ -27,6 +27,10 @@ Px4Interface::Px4Interface()
 	vehicle_odometry_pub_ =
 			this->create_publisher<nav_msgs::msg::Odometry>(
 					"/uam_vehicle_interface/odometry", 10);
+	vehicle_interface_status_pub_ =
+			this->create_publisher<uam_vehicle_interface_msgs::msg::VehicleInterfaceStatus>(
+					"/uam_vehicle_interface/vehicle_interface_status", 10);
+
 	tf_dynamic_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 	tf_static_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 	// ----------------------- Subscribers --------------------------
@@ -80,21 +84,31 @@ Px4Interface::Px4Interface()
 //							offboard_control_enable_ = false;
 //						}
 					});
-	vehicle_interface_commands_sub_ =
-			this->create_subscription<uam_vehicle_interface_msgs::msg::VehicleInterfaceCommands>(
-					"/uam_vehicle_interface/commands",
+	vehicle_interface_command_sub_ =
+			this->create_subscription<uam_vehicle_interface_msgs::msg::VehicleInterfaceCommand>(
+					"/uam_vehicle_interface/vehicle_interface_commands",
 					10,
-					[this](const uam_vehicle_interface_msgs::msg::VehicleInterfaceCommands::UniquePtr msg)
+					[this](const uam_vehicle_interface_msgs::msg::VehicleInterfaceCommand::UniquePtr msg)
 					{
-						switch (msg->vehicle_cmd) {
-							case uam_vehicle_interface_msgs::msg::VehicleInterfaceCommands::VEHICLE_INTERFACE_CMD_ENABLE:
-								offboard_control_enable_ = true;
+						switch (msg->command) {
+							case uam_vehicle_interface_msgs::msg::VehicleInterfaceCommand::VEHICLE_KILL_SWITCH_ENABLE:
+								kill_switch_enabled_ = true;
 								break;
-							case uam_vehicle_interface_msgs::msg::VehicleInterfaceCommands::VEHICLE_INTERFACE_CMD_DISABLE:
-								offboard_control_enable_ = false;
+							case uam_vehicle_interface_msgs::msg::VehicleInterfaceCommand::VEHICLE_KILL_SWITCH_DISABLE:
+								kill_switch_enabled_ = false;
 								break;
 						}
 					});
+
+	timer_ = this->create_wall_timer(
+			std::chrono::milliseconds(100),
+			[this]()
+			{
+				uam_vehicle_interface_msgs::msg::VehicleInterfaceStatus status_msg;
+				status_msg.stamp = this->get_clock()->now();
+				status_msg.vehicle_kill_switch_enabled = kill_switch_enabled_;
+				vehicle_interface_status_pub_->publish(status_msg);
+			});
 
 	setup_static_transforms();
 }
@@ -208,25 +222,28 @@ void Px4Interface::publish_vehicle_command(uint16_t command, float param1,
 //	}
 //}
 
-void Px4Interface::publish_attitude_setpoint(const uam_control_msgs::msg::AttitudeSetpoint::SharedPtr msg)
+void Px4Interface::publish_attitude_setpoint(const uam_control_msgs::msg::AttitudeSetpoint& msg)
 {
 	px4_msgs::msg::VehicleAttitudeSetpoint vehicle_attitude;
 
-	if (offboard_control_enable_ && vehicle_status_.arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED) {
+	if (!kill_switch_enabled_) {
 		if (vehicle_status_.nav_state != px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD && offboard_counter_ == 10) {
+			if (vehicle_status_.arming_state != px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED) {
+				arm();
+			}
 			publish_vehicle_command(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
 		} else if (offboard_counter_ < 11) {
 			offboard_counter_++;
 		}
 		vehicle_attitude.timestamp = static_cast<int>(get_clock()->now().nanoseconds() / 1000);
-		vehicle_attitude.roll_body = static_cast<float>(msg->roll_body);
-		vehicle_attitude.pitch_body = static_cast<float>(msg->pitch_body);
-		vehicle_attitude.yaw_body = static_cast<float>(msg->yaw_body);
-		vehicle_attitude.q_d[0] = static_cast<float>(msg->q_d[0]);
-		vehicle_attitude.q_d[1] = static_cast<float>(msg->q_d[1]);
-		vehicle_attitude.q_d[2] = static_cast<float>(msg->q_d[2]);
-		vehicle_attitude.q_d[3] = static_cast<float>(msg->q_d[3]);
-		vehicle_attitude.thrust_body[2] = static_cast<float>(fmin(-compute_relative_thrust(msg->thrust_body_normalized * vehicle_mass_), 0.0));
+		vehicle_attitude.roll_body = static_cast<float>(msg.roll_body);
+		vehicle_attitude.pitch_body = static_cast<float>(msg.pitch_body);
+		vehicle_attitude.yaw_body = static_cast<float>(msg.yaw_body);
+		vehicle_attitude.q_d[0] = static_cast<float>(msg.q_d[0]);
+		vehicle_attitude.q_d[1] = static_cast<float>(msg.q_d[1]);
+		vehicle_attitude.q_d[2] = static_cast<float>(msg.q_d[2]);
+		vehicle_attitude.q_d[3] = static_cast<float>(msg.q_d[3]);
+		vehicle_attitude.thrust_body[2] = static_cast<float>(fmin(-compute_relative_thrust(msg.thrust_body_normalized * vehicle_mass_), 0.0));
 
 		publish_offboard_control_mode();
 		vehicle_attitude_setpoint_pub_->publish(vehicle_attitude);
@@ -235,7 +252,7 @@ void Px4Interface::publish_attitude_setpoint(const uam_control_msgs::msg::Attitu
 	}
 }
 
-void Px4Interface::vehicle_odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)
+void Px4Interface::vehicle_odometry_callback(const px4_msgs::msg::VehicleOdometry::UniquePtr msg)
 {
 	nav_msgs::msg::Odometry vehicle_odom;
 	vehicle_odom.header.stamp = get_clock()->now();
@@ -319,28 +336,6 @@ void Px4Interface::setup_static_transforms()
 //		offboard_counter_ = 0;
 //	}
 //}
-
-void Px4Interface::enable_offboard_control()
-{
-	RCLCPP_INFO(get_logger(), "Enabling offboard control");
-	uam_control_msgs::msg::AttitudeSetpoint::SharedPtr msg = std::make_shared<uam_control_msgs::msg::AttitudeSetpoint>();
-	msg->roll_body = 0.f;
-	msg->pitch_body = 0.f;
-	msg->yaw_body = 0.f;
-	msg->q_d = {1.f, 0.f, 0.f, 0.f};
-	msg->thrust_body_normalized = 9.8f;
-	uint8_t attempts = 0;
-	offboard_control_enable_ = true;
-	while (vehicle_status_.nav_state != px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD &&
-			vehicle_status_.arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED) {
-		publish_attitude_setpoint(msg);
-		if (attempts < 20) {
-			attempts++;
-		} else {
-			break;
-		}
-	}
-}
 
 double Px4Interface::compute_relative_thrust(const double &collective_thrust) const
 {

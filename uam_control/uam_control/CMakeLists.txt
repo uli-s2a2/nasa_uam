@@ -26,13 +26,6 @@ find_package(uam_mapping_msgs REQUIRED)
 find_package(uam_control_msgs REQUIRED)
 find_package(uam_util REQUIRED)
 
-option(RUN_SITL "Target build is simulation" ON)## RUN IN SIMULATION
-
-if(RUN_SITL)
-  message(STATUS "RUN_SITL ACTIVE")
-  add_definitions(-DRUN_SITL=1)
-endif()
-
 include_directories(include)
 
 add_executable(qlearning_controller src/qlearning_controller.cpp)

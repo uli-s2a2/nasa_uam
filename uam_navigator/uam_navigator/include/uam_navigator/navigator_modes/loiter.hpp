@@ -1,4 +1,5 @@
-#include "uam_navigator/navigator_modes/navigator_mode.hpp"
+#pragma once
+#include "navigator_modes/navigator_mode.hpp"
 
 namespace uam_navigator
 {
@@ -10,12 +11,16 @@ public:
 	~Loiter();
 
 protected:
-	bool configure() override;
-	bool activate(const nav_msgs::msg::Odometry & start, const nav_msgs::msg::Odometry & goal) override;
+	bool configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+	               std::shared_ptr<uam_navigator::Navigator> navigator,
+	               std::string nav_mode) override;
+	bool activate(uam_navigator_msgs::action::NavigatorCommand::Goal::ConstSharedPtr goal) override;
 	bool deactivate() override;
 	bool cleanup() override;
-	nav_msgs::msg::Odometry compute_position_setpoint(const nav_msgs::msg::Odometry & current_odom) override;
+	void publish_navigator_setpoint() override;
 
+	// Class Variables
+	nav_msgs::msg::Odometry vehicle_odom_;
 	geometry_msgs::msg::PoseStamped loiter_position_;
 };
 

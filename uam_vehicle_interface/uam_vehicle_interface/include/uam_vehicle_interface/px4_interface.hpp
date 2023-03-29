@@ -17,7 +17,8 @@
 #include "px4_msgs/msg/vehicle_control_mode.hpp"
 #include "uam_control_msgs/msg/attitude_setpoint.hpp"
 #include "nav_msgs/msg/odometry.hpp"
-#include "uam_vehicle_interface_msgs/msg/vehicle_interface_commands.hpp"
+#include "uam_vehicle_interface_msgs/msg/vehicle_interface_command.hpp"
+#include "uam_vehicle_interface_msgs/msg/vehicle_interface_status.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "tf2_eigen/tf2_eigen.h"
@@ -40,22 +41,21 @@ private:
 	rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_control_mode_pub_;
 	rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr vehicle_command_pub_;
 	rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr vehicle_odometry_pub_;
+	rclcpp::Publisher<uam_vehicle_interface_msgs::msg::VehicleInterfaceStatus>::SharedPtr vehicle_interface_status_pub_;
+
 	std::unique_ptr<tf2_ros::TransformBroadcaster> tf_dynamic_broadcaster_;
 	std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster_;
 
 	// ----------------------- Subscribers --------------------------
 	rclcpp::Subscription<px4_msgs::msg::RcChannels>::SharedPtr channels_sub_;
-//	rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub_;
 	rclcpp::Subscription<px4_msgs::msg::BatteryStatus>::SharedPtr battery_status_sub_;
 	rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr vehicle_status_sub_;
-//	rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr local_position_sub_;
-//	rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr attitude_sub_;
 	rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr vehicle_odometry_sub_;
 	rclcpp::Subscription<uam_control_msgs::msg::AttitudeSetpoint>::SharedPtr  attitude_setpoint_sub_;
-	rclcpp::Subscription<uam_vehicle_interface_msgs::msg::VehicleInterfaceCommands>::SharedPtr vehicle_interface_commands_sub_;
+	rclcpp::Subscription<uam_vehicle_interface_msgs::msg::VehicleInterfaceCommand>::SharedPtr vehicle_interface_command_sub_;
 
 	// Class Variables
-	bool offboard_control_enable_{false};
+	bool kill_switch_enabled_{true};
 	uint8_t offboard_counter_{0};
 	double vehicle_mass_;
 	double motor_thrust_max_;
@@ -69,13 +69,12 @@ private:
 	px4_msgs::msg::BatteryStatus battery_status_;
 	px4_msgs::msg::VehicleStatus vehicle_status_;
 	px4_msgs::msg::RcChannels channels_;
-//	px4_msgs::msg::VehicleLocalPosition local_position_;
-//	px4_msgs::msg::VehicleAttitude attitude_;
 	px4_msgs::msg::VehicleOdometry vehicle_odometry_;
+	rclcpp::TimerBase::SharedPtr timer_;
 
 	// Private class methods
-	void publish_attitude_setpoint(const uam_control_msgs::msg::AttitudeSetpoint::SharedPtr msg);
-	void vehicle_odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
+	void publish_attitude_setpoint(const uam_control_msgs::msg::AttitudeSetpoint& msg);
+	void vehicle_odometry_callback(px4_msgs::msg::VehicleOdometry::UniquePtr msg);
 	void publish_offboard_control_mode();
 	void publish_vehicle_command(uint16_t command, float param1 = 0.0,float param2 = 0.0);
 	double compute_relative_thrust(const double &collective_thrust) const;

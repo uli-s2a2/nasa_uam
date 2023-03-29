@@ -10,39 +10,51 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 	compute_svec_matrix();
 	state_vector_.setZero();
 	control_vector_.setZero();
-	control_vector_(2) = -2.0;
-	navigator_setpoint_.setZero();
 	critic_augmented_state_kronecker_prior_.setZero();
 	// set initial weight
-	critic_weight_vector_ <<   48.28,-0.00,-0.00,54.14,-0.00,0.00,14.14,-0.00,0.00,48.28,-0.00,-0.00,54.14,-0.00,
-								-0.00,14.14,-0.00,48.28,-0.00,-0.00,54.14,-0.00,-0.00,14.14,54.14,-0.00,-0.00,20.00,
-								-0.00,-0.00,54.14,-0.00,-0.00,20.00,-0.00,54.14,-0.00,-0.00,20.00,5.00,0.00,0.00,5.00,0.00,5.00;
-	actor_weight_matrix_ <<    -2.00,0.00,-0.00,0.00,-2.00,0.00,0.00,0.00,-2.00,-2.83,0.00,0.00,0.00,-2.83,0.00,0.00,0.00,-2.83;
-	terminal_riccati_matrix_ << 28.28,-0.00,-0.00,10.00,-0.00,0.00,-0.00,28.28,-0.00,-0.00,10.00,-0.00,-0.00,-0.00,
-								28.28,-0.00,-0.00,10.00,10.00,-0.00,-0.00,14.14,-0.00,-0.00,-0.00,10.00,-0.00,-0.00,
-								14.14,-0.00,0.00,-0.00,10.00,-0.00,-0.00,14.14;
+	critic_weight_vector_ <<   150.00,0.00,0.00,84.85,0.00,0.00,14.14,0.00,0.00,150.00,0.00,0.00,84.85,
+								 0.00,0.00,14.14,0.00,150.00,0.00,0.00,84.85,0.00,0.00,14.14,30.00,0.00,
+								 0.00,7.07,0.00,0.00,30.00,0.00,0.00,7.07,0.00,30.00,0.00,0.00,7.07,1.00,
+								 0.00,0.00,1.00,0.00,1.00;
+	actor_weight_matrix_ <<    -10.00,0.00,0.00,0.00,-10.00,0.00,0.00,0.00,-10.00,
+								-5.00,0.00,0.00,0.00,-5.00,0.00,0.00,0.00,-5.00;
+	terminal_riccati_matrix_ << 50.00,0.00,0.00,10.00,0.00,0.00,0.00,50.00,0.00,0.00,10.00,0.00,0.00,0.00,
+	                            50.00,0.00,0.00,10.00,10.00,0.00,0.00,5.00,0.00,0.00,0.00,10.00,0.00,0.00,
+	                            5.00,0.00,0.00,0.00,10.00,0.00,0.00,5.00;
 	state_penalty_matrix_.setZero();
-	state_penalty_matrix_.diagonal() << 20.0, 20.0, 20.0, 10.0, 10.0, 10.0;
+	state_penalty_matrix_.diagonal() << 100.0, 100.0, 100.0, 5.0, 5.0, 5.0;
 	control_penalty_matrix_.setZero();
-	control_penalty_matrix_.diagonal() << 5.0, 5.0, 5.0;
+	control_penalty_matrix_.diagonal() << 1.0, 1.0, 1.0;
 	start_time_ = this->get_clock()->now();
+
+	try {
+		declare_parameter("rrtx_static.critic_convergence_rate",rclcpp::ParameterValue(0.1));
+		declare_parameter("rrtx_static.actor_convergence_rate",rclcpp::ParameterValue(0.1));
+		declare_parameter("rrtx_static.minimum_altitude_for_learning",rclcpp::ParameterValue(0.6));
+		declare_parameter("rrtx_static.learning_update_frequency",rclcpp::ParameterValue(100.0));
+
+		get_parameter("rrtx_static.critic_convergence_rate",critic_convergence_rate_);
+		get_parameter("rrtx_static.actor_convergence_rate",actor_convergence_rate_);
+		get_parameter("rrtx_static.minimum_altitude_for_learning",minimum_altitude_for_learning_);
+		get_parameter("rrtx_static.learning_update_frequency",learning_update_frequency_);
+
+	} catch (const rclcpp::ParameterTypeException & ex) {
+		RCLCPP_ERROR(get_logger(), "Parameter type exception thrown");
+	}
 	// ----------------------- Subscribers --------------------------
 	navigator_setpoint_sub_ =
 			this->create_subscription<nav_msgs::msg::Odometry>(
 					"/uam_navigator/position_setpoint", 10,
 					[this](const nav_msgs::msg::Odometry::UniquePtr msg) {
-						if (vehicle_status_.arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED) {
-							navigator_setpoint_.x() = msg->pose.pose.position.x;
-							navigator_setpoint_.y() = msg->pose.pose.position.y;
-							navigator_setpoint_.z() = msg->pose.pose.position.z;
-							navigator_setpoint_.vx() = msg->twist.twist.linear.x;
-							navigator_setpoint_.vy() = msg->twist.twist.linear.y;
-							navigator_setpoint_.vz() = msg->twist.twist.linear.z;
-
-							setup();
-							compute_control();
-							publish_control_mellinger();
+						if (navigator_setpoint_.pose.pose != msg->pose.pose) {
+							is_setpoint_new_ = true;
+							start_time_ = this->get_clock()->now();
 						}
+						navigator_setpoint_ = *msg;
+
+						auto state_vector = compute_state_vector();
+						auto control = compute_control(state_vector);
+						publish_control_mellinger(control);
 					});
 	// TODO: remove dependence on px4_msgs
 	vehicle_status_sub_ =
@@ -53,7 +65,16 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 	vehicle_odometry_sub_ =
 			this->create_subscription<nav_msgs::msg::Odometry>("/uam_vehicle_interface/odometry", 10,
 					[this](const nav_msgs::msg::Odometry::UniquePtr msg) {
+						rclcpp::Time vehicle_odom_time(vehicle_odometry_.header.stamp.sec, vehicle_odometry_.header.stamp.nanosec);
+						rclcpp::Time msg_time(msg->header.stamp.sec, msg->header.stamp.nanosec);
+						time_resolution_ = msg_time.seconds() - vehicle_odom_time.seconds();
 					    vehicle_odometry_ = *msg;
+						if (can_learn() && time_resolution_ < 0.1) {
+							//------- Q-Learning -------------
+							learn();
+						} else {
+							start_time_ = this->get_clock()->now();
+						}
 					});
 	// ----------------------- Publishers ---------------------------
 
@@ -62,51 +83,59 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 	qlearning_status_pub_ =
 			this->create_publisher<uam_control_msgs::msg::QLearningStatus>("/uam_control/qlearning_status", 10);
 
-	auto timer_callback = [this]() -> void
-	{
-		if (can_learn()) {
-			//------- Q-Learning -------------
-			learn();
+//	auto timer_callback = [this]() -> void
+//	{
+//		if (can_learn()) {
+//			//------- Q-Learning -------------
+//			learn();
+//		} else {
+//			start_time_ = this->get_clock()->now();
+//		}
+//	};
 
-			// TODO: publish outside of can_learn() and add a learn_enable bool in message
-			publish_qlearning_status();
-		} else {
-			start_time_ = this->get_clock()->now();
-		}
-	};
-
-	timer_ = this->create_wall_timer(std::chrono::milliseconds(QLEARNING_CALLBACK_RATE_MS), timer_callback);
+//	time_resolution_ = 1.0 / learning_update_frequency_;
+//	timer_ = this->create_wall_timer(std::chrono::duration<double>(time_resolution_), timer_callback);
 }
 
 bool QLearningController::can_learn() const
 {
 	bool out;
-	out =   abs(vehicle_odometry_.pose.pose.position.z) > learning_minimum_altitude_ &&
+	out =   abs(vehicle_odometry_.pose.pose.position.z) > minimum_altitude_for_learning_ &&
 			vehicle_status_.arming_state == px4_msgs::msg::VehicleStatus::ARMING_STATE_ARMED &&
 			vehicle_status_.nav_state == px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD;
 	return out;
 }
 
-void QLearningController::setup()
+state_vector_t QLearningController::compute_state_vector() const
 {
-
-	state_vector_ << vehicle_odometry_.pose.pose.position.x - navigator_setpoint_.x(),
-					 vehicle_odometry_.pose.pose.position.y - navigator_setpoint_.y(),
-					 vehicle_odometry_.pose.pose.position.z - navigator_setpoint_.z(),
-				 	 vehicle_odometry_.twist.twist.linear.x - navigator_setpoint_.vx(),
-				 	 vehicle_odometry_.twist.twist.linear.y - navigator_setpoint_.vy(),
-					 vehicle_odometry_.twist.twist.linear.z - navigator_setpoint_.vz();
+	state_vector_t state_vector;
+	state_vector << vehicle_odometry_.pose.pose.position.x - navigator_setpoint_.pose.pose.position.x,
+					vehicle_odometry_.pose.pose.position.y - navigator_setpoint_.pose.pose.position.y,
+					vehicle_odometry_.pose.pose.position.z - navigator_setpoint_.pose.pose.position.z,
+					vehicle_odometry_.twist.twist.linear.x - navigator_setpoint_.twist.twist.linear.x,
+					vehicle_odometry_.twist.twist.linear.y - navigator_setpoint_.twist.twist.linear.y,
+					vehicle_odometry_.twist.twist.linear.z - navigator_setpoint_.twist.twist.linear.z;
+	return state_vector;
 }
 void QLearningController::learn()
 {
 	double current_time = (this->get_clock()->now().seconds() - start_time_.seconds());
 
 	// Setup
-	setup();
+	state_vector_ = compute_state_vector();
+	control_vector_ = compute_control(state_vector_);
 	augmented_state_vector_ << state_vector_, control_vector_;
 	critic_augmented_state_kronecker_ = vec_to_svec_transform_matrix_ * kroneckerProduct(augmented_state_vector_, augmented_state_vector_);
 	critic_radial_basis_matrix_ = compute_critic_radial_basis_matrix(current_time);
 	actor_radial_basis_matrix_ = compute_actor_radial_basis_matrix(current_time);
+
+
+	if (is_setpoint_new_) {
+		critic_augmented_state_kronecker_prior_ = critic_augmented_state_kronecker_;
+		is_setpoint_new_ = false;
+		RCLCPP_INFO(get_logger(), "Point is new.........");
+		return;
+	}
 
 	// Critic
 	critic_augmented_state_kronecker_t sigma;
@@ -115,40 +144,42 @@ void QLearningController::learn()
 	sigma << critic_radial_basis_matrix_ * (critic_augmented_state_kronecker_ - critic_augmented_state_kronecker_prior_);
 	sigma_f << critic_augmented_state_kronecker_;
 
-	double critic_error1 = critic_weight_vector_.transpose() * (critic_radial_basis_matrix_ * critic_augmented_state_kronecker_
-			- compute_critic_radial_basis_matrix(current_time - time_resolution) * critic_augmented_state_kronecker_prior_)
+	critic_error_1_ = critic_weight_vector_.transpose() * (critic_radial_basis_matrix_ * critic_augmented_state_kronecker_
+			- compute_critic_radial_basis_matrix(current_time - time_resolution_) * critic_augmented_state_kronecker_prior_)
 			+ 0.5 * ((state_vector_.transpose() * state_penalty_matrix_).dot(state_vector_)
-			+ (control_vector_.transpose() * control_penalty_matrix_).dot(control_vector_)) * time_resolution;
-	double critic_error2 = 0.5 * (state_vector_.transpose() * terminal_riccati_matrix_).dot(state_vector_)
+			+ (control_vector_.transpose() * control_penalty_matrix_).dot(control_vector_)) * time_resolution_;
+	critic_error_2_ = 0.5 * (state_vector_.transpose() * terminal_riccati_matrix_).dot(state_vector_)
 			- (critic_weight_vector_.transpose() * critic_radial_basis_matrix_).dot(critic_augmented_state_kronecker_);
 
-	critic_weight_vector_t critic_weight_dot = -critic_convergence_rate
-			* ((1.0/pow(1 + sigma.transpose()*sigma, 2))*sigma*critic_error1
-			+ (1.0/pow(1 + sigma_f.transpose()*sigma_f, 2))*sigma_f*critic_error2);
-
-	critic_weight_vector_ += critic_weight_dot * time_resolution;
-	critic_augmented_state_kronecker_prior_ = critic_augmented_state_kronecker_;
-
+	critic_weight_vector_t critic_weight_dot = -critic_convergence_rate_
+			* ((1.0/pow(1.0 + sigma.transpose()*sigma, 2))*sigma*critic_error_1_
+			+ (1.0/pow(1.0 + sigma_f.transpose()*sigma_f, 2))*sigma_f*critic_error_2_);
 
 	// Actor
 	augmented_state_matrix_t Q_hat;
 	Q_hat << (vec_to_svec_transform_matrix_.transpose() *
-			  (2 * critic_radial_basis_matrix_.transpose() * critic_weight_vector_))
-			  .reshaped(AUGMENTED_STATE_VECTOR_SIZE,AUGMENTED_STATE_VECTOR_SIZE);
+			(2 * critic_radial_basis_matrix_.transpose() * critic_weight_vector_))
+			.reshaped(AUGMENTED_STATE_VECTOR_SIZE,AUGMENTED_STATE_VECTOR_SIZE);
 	control_matrix_t Quu = Q_hat.bottomRightCorner<QLEARNING_CONTROL_VECTOR_SIZE, QLEARNING_CONTROL_VECTOR_SIZE>();
-	control_vector_t actor_error = actor_weight_matrix_.transpose() * actor_radial_basis_matrix_ * state_vector_
+	actor_error_ = actor_weight_matrix_.transpose() * actor_radial_basis_matrix_ * state_vector_
 			+ Quu.inverse() * Q_hat.bottomLeftCorner<QLEARNING_CONTROL_VECTOR_SIZE, QLEARNING_STATE_VECTOR_SIZE>() * state_vector_;
-	actor_weight_matrix_t actor_weight_dot = -actor_convergence_rate * state_vector_ * actor_error.transpose();
-
-	actor_weight_matrix_ += actor_weight_dot * time_resolution;
+	actor_weight_matrix_t actor_weight_dot = -actor_convergence_rate_ * state_vector_ * actor_error_.transpose();
 
 	// Q value
-	q_value_ = critic_weight_vector_.transpose() * critic_radial_basis_matrix_ * critic_augmented_state_kronecker_;
+	quality_value_ = critic_weight_vector_.transpose() * critic_radial_basis_matrix_ * critic_augmented_state_kronecker_;
+
+	publish_qlearning_status();
+
+	// Update weights
+	critic_weight_vector_ += critic_weight_dot * time_resolution_;
+	critic_augmented_state_kronecker_prior_ = critic_augmented_state_kronecker_;
+	actor_weight_matrix_ += actor_weight_dot * time_resolution_;
+
 }
-void QLearningController::compute_control()
+control_vector_t QLearningController::compute_control(const mavState& state_vector)
 {
 	double current_time = (this->get_clock()->now().seconds() - start_time_.seconds());
-	control_vector_ = actor_weight_matrix_.transpose() * compute_actor_radial_basis_matrix(current_time) * state_vector_;
+	return actor_weight_matrix_.transpose() * compute_actor_radial_basis_matrix(current_time) * state_vector;
 }
 
 critic_radial_basis_matrix_t QLearningController::compute_critic_radial_basis_matrix(double t)
@@ -188,7 +219,7 @@ void QLearningController::compute_svec_matrix()
 	}
 	vec_to_svec_transform_matrix_ = vec_to_svec_transform_matrix;
 }
-void QLearningController::publish_control_mellinger()
+void QLearningController::publish_control_mellinger(const control_vector_t& control_vector)
 {
 	Vector3d thrust_des;
 	uam_control_msgs::msg::AttitudeSetpoint attitude_setpoint;
@@ -209,7 +240,7 @@ void QLearningController::publish_control_mellinger()
 	z_axis = R.col(2);
 
 	//TODO common config params
-	thrust_des = control_vector_ + Vector3d(0.0,0.0,-9.80665);
+	thrust_des = control_vector + Vector3d(0.0,0.0,-9.80665);
 	thrust_proj = thrust_des.dot(-z_axis);
 
 	x_c_des << cos(yaw_des), sin(yaw_des), 0;
@@ -247,15 +278,31 @@ void QLearningController::publish_qlearning_status()
 
 	qlearning_status.stamp = this->get_clock()->now();
 	qlearning_status.start_time = start_time_;
-	qlearning_status.q_function = q_value_;
+	qlearning_status.quality_value = quality_value_;
+
 	for(size_t i = 0; i < qlearning_status.actor_weight_matrix.size(); i++)
 		qlearning_status.actor_weight_matrix[i] = *(actor_weight_matrix_.data() + i);
 
-	for(size_t i = 0; i < qlearning_status.actor_weight_matrix.size(); i++)
+	for(size_t i = 0; i < qlearning_status.critic_weight_vector.size(); i++)
 		qlearning_status.critic_weight_vector[i] = critic_weight_vector_[i];
 
-	for(size_t i = 0; i < qlearning_status.actor_weight_matrix.size(); i++)
+	for(size_t i = 0; i < qlearning_status.control_vector.size(); i++)
 		qlearning_status.control_vector[i] = control_vector_[i];
+
+	for(size_t i = 0; i < qlearning_status.state_vector.size(); i++)
+		qlearning_status.state_vector[i] = state_vector_[i];
+
+	for(size_t i = 0; i < qlearning_status.critic_augmented_state_kronecker.size(); i++)
+		qlearning_status.critic_augmented_state_kronecker[i] = critic_augmented_state_kronecker_[i];
+
+	for(size_t i = 0; i < qlearning_status.critic_augmented_state_kronecker_prior.size(); i++)
+		qlearning_status.critic_augmented_state_kronecker_prior[i] = critic_augmented_state_kronecker_prior_[i];
+
+	qlearning_status.critic_error_1 = critic_error_1_;
+	qlearning_status.critic_error_2 = critic_error_2_;
+
+	for(size_t i = 0; i < qlearning_status.actor_error.size(); i++)
+		qlearning_status.actor_error[i] = actor_error_[i];
 
 	qlearning_status_pub_->publish(qlearning_status);
 }

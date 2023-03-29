@@ -22,7 +22,7 @@ void RrtxStatic::configure(
 		std::string name)
 {
 	name_ = name;
-	global_frame_ = "map_ned";
+	global_frame_ = "map";
 	node_ = parent;
 	auto node = parent.lock();
 	clock_ = node->get_clock();
@@ -30,8 +30,22 @@ void RrtxStatic::configure(
 	RCLCPP_INFO(
 			logger_, "Configuring plugin %s of type RrtxStatic",
 			name_.c_str());
-	node->declare_parameter(name + ".obstacle_scaling", rclcpp::ParameterValue(1.3));
-	node->get_parameter(name + ".obstacle_scaling", obstacle_scaling_);
+	try {
+		node->declare_parameter(name + ".obstacle_scaling", rclcpp::ParameterValue(1.3));
+		node->get_parameter(name + ".obstacle_scaling", obstacle_scaling_);
+
+		node->declare_parameter(name + ".bounds_low",
+		                        rclcpp::ParameterValue(std::vector<double>RRTX_ARENA_BOUNDS_LOW_DEFAULT));
+		node->get_parameter(name + ".bounds_low", planner_map_bounds_low_);
+		node->declare_parameter(name + ".bounds_high",
+		                        rclcpp::ParameterValue(std::vector<double>RRTX_ARENA_BOUNDS_HIGH_DEFAULT));
+		node->get_parameter(name + ".bounds_high", planner_map_bounds_high_);
+		node->declare_parameter(name + ".solve_time", rclcpp::ParameterValue((double)RRTX_PLANNER_MAX_SOLVE_TIME_S));
+		node->get_parameter(name + ".solve_time", planner_solve_time_);
+	} catch (const rclcpp::ParameterTypeException & ex) {
+		RCLCPP_ERROR(node->get_logger(), "Plugin RrtxStatic parameter type exception:  %s", ex.what());
+	}
+
 
 	obstacle_sub_ = node->create_subscription<uam_mapping_msgs::msg::ObstacleArray>(
 			"uam_mapping/obstacles", 10,
@@ -77,14 +91,15 @@ void RrtxStatic::configure(
 				}
 			});
 
+	ompl::msg::noOutputHandler();
 	state_space_ptr_ = std::make_shared<ompl::base::SE3StateSpace>();
 	ompl::base::RealVectorBounds bounds(3);
-	bounds.setLow(0, RRTX_ARENA_X_BOUNDS_LOW);
-	bounds.setHigh(0, RRTX_ARENA_X_BOUNDS_HIGH);
-	bounds.setLow(1, RRTX_ARENA_Y_BOUNDS_LOW);
-	bounds.setHigh(1, RRTX_ARENA_Y_BOUNDS_HIGH);
-	bounds.setLow(2, RRTX_ARENA_Z_BOUNDS_LOW);
-	bounds.setHigh(2, RRTX_ARENA_Z_BOUNDS_HIGH);
+	bounds.setLow(0, planner_map_bounds_low_[0]);
+	bounds.setHigh(0, planner_map_bounds_high_[0]);
+	bounds.setLow(1, planner_map_bounds_low_[1]);
+	bounds.setHigh(1, planner_map_bounds_high_[1]);
+	bounds.setLow(2, planner_map_bounds_low_[2]);
+	bounds.setHigh(2, planner_map_bounds_high_[2]);
 	state_space_ptr_->as<ompl::base::SE3StateSpace>()->setBounds(bounds);
 	state_space_ptr_->setValidSegmentCountFactor(100);
 	space_info_ptr_ = std::make_shared<ompl::base::SpaceInformation>(state_space_ptr_);
@@ -129,29 +144,46 @@ nav_msgs::msg::Path RrtxStatic::create_path(
 		const geometry_msgs::msg::PoseStamped & start,
         const geometry_msgs::msg::PoseStamped & goal)
 {
+	prob_def_ptr_->clearStartStates();
+	prob_def_ptr_->clearGoal();
+	prob_def_ptr_->clearSolutionPaths();
+	planner_ptr_->clear();
 	ompl::base::ScopedState<ompl::base::SE3StateSpace> start_state(state_space_ptr_);
-	start_state->setXYZ(
-			start.pose.position.y,
-			start.pose.position.x,
-			-start.pose.position.z);
+	if (start.header.frame_id == "map") {
+		start_state->setXYZ(
+				start.pose.position.x,
+				start.pose.position.y,
+				start.pose.position.z);
+	} else if (start.header.frame_id == "map_ned") {
+		start_state->setXYZ(
+				start.pose.position.y,
+				start.pose.position.x,
+				-start.pose.position.z);
+	}
 	start_state->rotation().setIdentity();
 
 	ompl::base::ScopedState<ompl::base::SE3StateSpace> goal_state(state_space_ptr_);
-	goal_state->setXYZ(
-			goal.pose.position.y,
-			goal.pose.position.x,
-			-goal.pose.position.z);
+	if (goal.header.frame_id == "map") {
+		goal_state->setXYZ(
+				goal.pose.position.x,
+				goal.pose.position.y,
+				goal.pose.position.z);
+	} else if (goal.header.frame_id == "map_ned") {
+		goal_state->setXYZ(
+				goal.pose.position.y,
+				goal.pose.position.x,
+				-goal.pose.position.z);
+	}
 	goal_state->rotation().setIdentity();
-
 	prob_def_ptr_->setStartAndGoalStates(start_state, goal_state);
 	planner_ptr_->setup();
 
-	space_info_ptr_->printSettings(std::cout);
-	prob_def_ptr_->print(std::cout);
+//	space_info_ptr_->printSettings(std::cout);
+//	prob_def_ptr_->print(std::cout);
 
-	auto planner_status = planner_ptr_->ompl::base::Planner::solve(RRTX_PLANNER_MAX_SOLVE_TIME_S);
+	auto planner_status = planner_ptr_->ompl::base::Planner::solve(planner_solve_time_);
 
-	prob_def_ptr_->print(std::cout);
+//	prob_def_ptr_->print(std::cout);
 	// TODO: add more exception checking
 	if (planner_status != ompl::base::PlannerStatus::EXACT_SOLUTION &&
 		planner_status != ompl::base::PlannerStatus::APPROXIMATE_SOLUTION) {
@@ -166,10 +198,10 @@ nav_msgs::msg::Path RrtxStatic::create_path(
 	for(size_t i = 0; i < path_ptr->getStateCount(); i++) {
 		auto state = path_ptr->getState(i)->as<ompl::base::SE3StateSpace::StateType>();
 		geometry_msgs::msg::PoseStamped pose;
-		pose.header.frame_id = "map_ned";
-		pose.pose.position.x = state->getY();
-		pose.pose.position.y = state->getX();
-		pose.pose.position.z = -state->getZ();
+		pose.header.frame_id = global_frame_;
+		pose.pose.position.x = state->getX();
+		pose.pose.position.y = state->getY();
+		pose.pose.position.z = state->getZ();
 		path.poses.push_back(pose);
 	}
 
