@@ -134,6 +134,8 @@ private:
 	actor_radial_basis_matrix_t actor_radial_basis_matrix_;
 	double critic_error_1_;
 	double critic_error_2_;
+	double running_cost_;
+	double running_cost_prior_;
 	control_vector_t actor_error_;
 	double minimum_altitude_for_learning_;
 	double critic_convergence_rate_;

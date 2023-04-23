@@ -24,8 +24,8 @@ navigator:
 uam_control:
   ros__parameters:
     rrtx_static:
-      critic_convergence_rate: 1.0
-      actor_convergence_rate: 0.2
+      critic_convergence_rate: 10.0
+      actor_convergence_rate: 0.5
       minimum_altitude_for_learning: 0.6
       learning_update_frequency: 100.0 # Hz
 
@@ -47,6 +47,8 @@ static_obstacle_advertiser:
                    '7', '8', '9', '10', '11', '12',
                    '13', '14', '15', '16', '17', '18',
                    '19', '20', '21']
+#    obstacles_x: []
+#    obstacles_y: []
     obstacles_x: [ 1.524,
                    2.1336,
                    2.7432,

@@ -11,21 +11,13 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 	state_vector_.setZero();
 	control_vector_.setZero();
 	critic_augmented_state_kronecker_prior_.setZero();
-	// set initial weight
-	critic_weight_vector_ <<   150.00,0.00,0.00,84.85,0.00,0.00,14.14,0.00,0.00,150.00,0.00,0.00,84.85,
-								 0.00,0.00,14.14,0.00,150.00,0.00,0.00,84.85,0.00,0.00,14.14,30.00,0.00,
-								 0.00,7.07,0.00,0.00,30.00,0.00,0.00,7.07,0.00,30.00,0.00,0.00,7.07,1.00,
-								 0.00,0.00,1.00,0.00,1.00;
-	actor_weight_matrix_ <<    -10.00,0.00,0.00,0.00,-10.00,0.00,0.00,0.00,-10.00,
-								-5.00,0.00,0.00,0.00,-5.00,0.00,0.00,0.00,-5.00;
-	terminal_riccati_matrix_ << 50.00,0.00,0.00,10.00,0.00,0.00,0.00,50.00,0.00,0.00,10.00,0.00,0.00,0.00,
-	                            50.00,0.00,0.00,10.00,10.00,0.00,0.00,5.00,0.00,0.00,0.00,10.00,0.00,0.00,
-	                            5.00,0.00,0.00,0.00,10.00,0.00,0.00,5.00;
+
+	terminal_riccati_matrix_.diagonal() << 100.0, 100.0, 100.0, 10.0, 10.0, 10.0;
+
 	state_penalty_matrix_.setZero();
-	state_penalty_matrix_.diagonal() << 100.0, 100.0, 100.0, 5.0, 5.0, 5.0;
+	state_penalty_matrix_.diagonal() << 10.0, 10.0, 10.0, 30.0, 30.0, 30.0;
 	control_penalty_matrix_.setZero();
-	control_penalty_matrix_.diagonal() << 1.0, 1.0, 1.0;
-	start_time_ = this->get_clock()->now();
+	control_penalty_matrix_.diagonal() << 20.0, 20.0, 20.0;
 
 	try {
 		declare_parameter("rrtx_static.critic_convergence_rate",rclcpp::ParameterValue(0.1));
@@ -49,6 +41,13 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 						if (navigator_setpoint_.pose.pose != msg->pose.pose) {
 							is_setpoint_new_ = true;
 							start_time_ = this->get_clock()->now();
+							// reset weights
+							critic_weight_vector_ << 10.83,0.00,0.00,11.72,0.00,0.00,2.93,0.00,0.00,10.83,0.00,0.00,11.72,0.00,0.00,2.93,0.00,10.83,0.00,0.00,11.72,0.00,0.00,2.93,11.99,0.00,0.00,4.24,0.00,0.00,11.99,0.00,0.00,4.24,0.00,11.99,0.00,0.00,4.24,1.00,0.00,0.00,1.00,0.00,1.00;
+
+							actor_weight_matrix_ <<  -2.07,0.00,0.00,0.00,-2.07,0.00,0.00,0.00,-2.07,-3.00,0.00,0.00,0.00,-3.00,0.00,0.00,0.00,-3.00;
+
+							running_cost_ = 0;
+							running_cost_prior_ = 0;
 						}
 						navigator_setpoint_ = *msg;
 
@@ -68,6 +67,7 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 						rclcpp::Time vehicle_odom_time(vehicle_odometry_.header.stamp.sec, vehicle_odometry_.header.stamp.nanosec);
 						rclcpp::Time msg_time(msg->header.stamp.sec, msg->header.stamp.nanosec);
 						time_resolution_ = msg_time.seconds() - vehicle_odom_time.seconds();
+//						RCLCPP_INFO(get_logger(), "time resolution: %.4f", time_resolution_);
 					    vehicle_odometry_ = *msg;
 						if (can_learn() && time_resolution_ < 0.1) {
 							//------- Q-Learning -------------
@@ -134,7 +134,6 @@ void QLearningController::learn()
 		critic_augmented_state_kronecker_prior_ = critic_augmented_state_kronecker_;
 		is_setpoint_new_ = false;
 		RCLCPP_INFO(get_logger(), "Point is new.........");
-		return;
 	}
 
 	// Critic
@@ -142,28 +141,31 @@ void QLearningController::learn()
 	critic_augmented_state_kronecker_t sigma_f;
 
 	sigma << critic_radial_basis_matrix_ * (critic_augmented_state_kronecker_ - critic_augmented_state_kronecker_prior_);
-	sigma_f << critic_augmented_state_kronecker_;
+	sigma_f << -critic_radial_basis_matrix_ * critic_augmented_state_kronecker_;
 
 	critic_error_1_ = critic_weight_vector_.transpose() * (critic_radial_basis_matrix_ * critic_augmented_state_kronecker_
 			- compute_critic_radial_basis_matrix(current_time - time_resolution_) * critic_augmented_state_kronecker_prior_)
-			+ 0.5 * ((state_vector_.transpose() * state_penalty_matrix_).dot(state_vector_)
-			+ (control_vector_.transpose() * control_penalty_matrix_).dot(control_vector_)) * time_resolution_;
+			+ running_cost_ - running_cost_prior_;
 	critic_error_2_ = 0.5 * (state_vector_.transpose() * terminal_riccati_matrix_).dot(state_vector_)
-			- (critic_weight_vector_.transpose() * critic_radial_basis_matrix_).dot(critic_augmented_state_kronecker_);
-
+			- critic_weight_vector_.transpose().dot(sigma_f);
+//
 	critic_weight_vector_t critic_weight_dot = -critic_convergence_rate_
-			* ((1.0/pow(1.0 + sigma.transpose()*sigma, 2))*sigma*critic_error_1_
-			+ (1.0/pow(1.0 + sigma_f.transpose()*sigma_f, 2))*sigma_f*critic_error_2_);
-
+			* ((sigma /pow(1.0 + sigma.squaredNorm(), 2))*critic_error_1_)
+			- 0.0*critic_convergence_rate_ * (sigma_f /pow(1.0 + sigma_f.squaredNorm(), 2))*critic_error_2_;
+//	critic_weight_vector_t critic_weight_dot = -critic_convergence_rate_
+//			* ((sigma /pow(1.0 + sigma.transpose()*sigma, 2))*critic_error_1_)
+//			- exp(8.0*current_time - 5.0) * (critic_convergence_rate_ / 2.0) *(sigma_f /pow(1.0 + sigma_f.transpose()*sigma_f, 2))*critic_error_2_;
+//	critic_weight_vector_t critic_weight_dot = -critic_convergence_rate_
+//			* ((sigma /pow(1.0 + sigma.transpose()*sigma, 2))*critic_error_1_);
 	// Actor
-	augmented_state_matrix_t Q_hat;
-	Q_hat << (vec_to_svec_transform_matrix_.transpose() *
+	augmented_state_matrix_t Q_bar;
+	Q_bar << (vec_to_svec_transform_matrix_.transpose() *
 			(2 * critic_radial_basis_matrix_.transpose() * critic_weight_vector_))
 			.reshaped(AUGMENTED_STATE_VECTOR_SIZE,AUGMENTED_STATE_VECTOR_SIZE);
-	control_matrix_t Quu = Q_hat.bottomRightCorner<QLEARNING_CONTROL_VECTOR_SIZE, QLEARNING_CONTROL_VECTOR_SIZE>();
+	control_matrix_t Quu = Q_bar.bottomRightCorner<QLEARNING_CONTROL_VECTOR_SIZE, QLEARNING_CONTROL_VECTOR_SIZE>();
 	actor_error_ = actor_weight_matrix_.transpose() * actor_radial_basis_matrix_ * state_vector_
-			+ Quu.inverse() * Q_hat.bottomLeftCorner<QLEARNING_CONTROL_VECTOR_SIZE, QLEARNING_STATE_VECTOR_SIZE>() * state_vector_;
-	actor_weight_matrix_t actor_weight_dot = -actor_convergence_rate_ * state_vector_ * actor_error_.transpose();
+			+ Quu.inverse() * Q_bar.bottomLeftCorner<QLEARNING_CONTROL_VECTOR_SIZE, QLEARNING_STATE_VECTOR_SIZE>() * state_vector_;
+	actor_weight_matrix_t actor_weight_dot = -actor_convergence_rate_ * state_vector_ / (1.0 + state_vector_.dot(state_vector_)) * actor_error_.transpose();
 
 	// Q value
 	quality_value_ = critic_weight_vector_.transpose() * critic_radial_basis_matrix_ * critic_augmented_state_kronecker_;
@@ -172,9 +174,11 @@ void QLearningController::learn()
 
 	// Update weights
 	critic_weight_vector_ += critic_weight_dot * time_resolution_;
-	critic_augmented_state_kronecker_prior_ = critic_augmented_state_kronecker_;
 	actor_weight_matrix_ += actor_weight_dot * time_resolution_;
-
+	running_cost_prior_ = running_cost_;
+	running_cost_ += 0.5 * ((state_vector_.transpose() * state_penalty_matrix_).dot(state_vector_)
+			+ (control_vector_.transpose() * control_penalty_matrix_).dot(control_vector_)) * time_resolution_;
+	critic_augmented_state_kronecker_prior_ = critic_augmented_state_kronecker_;
 }
 control_vector_t QLearningController::compute_control(const mavState& state_vector)
 {
