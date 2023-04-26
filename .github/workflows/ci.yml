@@ -22,6 +22,7 @@ jobs:
           
       - name: Update Dependencies
         shell: bash
+        working-directory: nasa-uam-colcon
         run: |
           source /opt/ros/humble/setup.bash
           sudo apt-get update
