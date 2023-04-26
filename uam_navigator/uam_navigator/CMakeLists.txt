@@ -64,6 +64,10 @@ install(TARGETS navigator navigator_modes
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 
+install(DIRECTORY include/
+  DESTINATION include/
+)
+
 ament_export_include_directories(include)
 ament_export_libraries(navigator)
 ament_export_dependencies(${navigator_dependencies})

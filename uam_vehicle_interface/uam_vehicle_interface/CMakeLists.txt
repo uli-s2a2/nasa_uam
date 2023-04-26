@@ -15,6 +15,7 @@ find_package(uam_util REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(uam_vehicle_interface_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
 find_package(px4_ros_com REQUIRED)
 
 include_directories(include)
@@ -29,6 +30,7 @@ set(PX4_INTERFACE_DEPS
   nav_msgs
   uam_vehicle_interface_msgs
   tf2_ros
+  tf2_eigen
   px4_ros_com
 )
 
