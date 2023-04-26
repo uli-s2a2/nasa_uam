@@ -11,7 +11,7 @@
 #include "navigator_modes/takeoff.hpp"
 #include "navigator_modes/navigate_to_pose.hpp"
 #include "nav_msgs/msg/odometry.hpp"
-#include "uam_navigator_msgs/msg/nav_cmd.hpp"
+// #include "uam_navigator_msgs/msg/nav_cmd.hpp"
 #include "uam_navigator_msgs/action/navigator_command.hpp"
 #include "uam_navigator_msgs/msg/navigator_status.hpp"
 #include "uam_util/simple_action_server.hpp"

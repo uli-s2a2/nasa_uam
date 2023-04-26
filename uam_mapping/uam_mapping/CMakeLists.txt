@@ -12,7 +12,7 @@ find_package(uam_mapping_msgs REQUIRED)
 include_directories(include)
 
 add_executable(obstacle_advertiser src/obstacle_advertiser.cpp)
-ament_target_dependencies(obstacle_advertiser rclcpp Eigen3 shape_msgs uam_mapping_msgs)
+ament_target_dependencies(obstacle_advertiser rclcpp Eigen3 shape_msgs uam_mapping_msgs geometric_shapes)
 install(TARGETS obstacle_advertiser DESTINATION lib/${PROJECT_NAME})
 
 

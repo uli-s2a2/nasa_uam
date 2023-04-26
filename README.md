@@ -1,5 +1,7 @@
 # NASA Urban Air Mobility Flight Stack
 
+[Installation Instructions](docs/installation.md)
+
 This code can be run as a simulation or on hardware through the uam_vehicle_interface package. 
 
 To run as a simulation through software-in-the-loop (SITL):
