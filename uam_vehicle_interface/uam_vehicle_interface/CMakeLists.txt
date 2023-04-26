@@ -9,7 +9,6 @@ find_package(rclcpp REQUIRED)
 #find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 find_package(geometry_msgs REQUIRED)
 find_package(uam_control_msgs REQUIRED)
-find_package(uam_flight_manager_msgs REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(uam_util REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -24,7 +23,6 @@ set(PX4_INTERFACE_DEPS
   Eigen3
   rclcpp
   px4_msgs
-  uam_flight_manager_msgs
   uam_control_msgs
   uam_util
   nav_msgs

@@ -83,9 +83,10 @@ bool NavigateToPose::activate(uam_navigator_msgs::action::NavigatorCommand::Goal
 	mission_complete_ = false;
 	auto send_goal_options = rclcpp_action::Client<PlannerActionT>::SendGoalOptions();
 	// send_goal_options.goal_response_callback =
-			// std::bind(&NavigateToPose::goal_response_callback, this, std::placeholders::_1);
+	// 		std::bind(&NavigateToPose::goal_response_callback, this, std::placeholders::_1);
 	// send_goal_options.result_callback =
-			// std::bind(&NavigateToPose::result_callback, this, std::placeholders::_1);
+	// 		std::bind(&NavigateToPose::result_callback, this, std::placeholders::_1);
+
 	planner_client_ptr_->async_send_goal(planner_goal_msg, send_goal_options);
 
 	while (rclcpp::ok() && !planner_response_received_) {}
