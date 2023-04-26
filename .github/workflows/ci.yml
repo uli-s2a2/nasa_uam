@@ -18,11 +18,11 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
-          path: ros2_nasa_uam_ws/src/
+          path: nasa-uam-colcon/src/
 
       - name: Update Dependencies
         shell: bash
-        working-directory: ros2_nasa_uam_ws
+        working-directory: nasa-uam-colcon
         run: |
           source /opt/ros/galactic/setup.bash
           sudo apt-get update
@@ -33,7 +33,7 @@ jobs:
 
       - name: Build
         shell: bash
-        working-directory: ros2_nasa_uam_ws
+        working-directory: nasa-uam-colcon
         run: |
           source /opt/ros/galactic/setup.bash
           colcon build
