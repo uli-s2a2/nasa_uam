@@ -10,21 +10,21 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-22.04
-    container: ros:humble-ros-base
+    runs-on: ubuntu-20.04
+    container: ros:galactic-ros-base
     steps:
 
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
           submodules: recursive
-          path: nasa-uam-colcon/src/
-          
+          path: ros2_nasa_uam_ws/src/
+
       - name: Update Dependencies
         shell: bash
-        working-directory: nasa-uam-colcon
+        working-directory: ros2_nasa_uam_ws
         run: |
-          source /opt/ros/humble/setup.bash
+          source /opt/ros/galactic/setup.bash
           sudo apt-get update
           sudo apt-get upgrade -y
           sudo apt-get install -y libboost-all-dev qttools5-dev
@@ -33,7 +33,7 @@ jobs:
 
       - name: Build
         shell: bash
-        working-directory: nasa-uam-colcon
+        working-directory: ros2_nasa_uam_ws
         run: |
-          source /opt/ros/humble/setup.bash
+          source /opt/ros/galactic/setup.bash
           colcon build
