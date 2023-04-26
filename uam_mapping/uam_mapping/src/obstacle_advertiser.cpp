@@ -29,13 +29,13 @@ ObstacleAdvertiser::ObstacleAdvertiser() : Node("static_obstacle_advertiser")
 
 	auto timer_callback = [this]() -> void
 	{
-		publish_obstacles();
+		publishObstacles();
 	};
 
 	timer_ = this->create_wall_timer(100ms, timer_callback);
 }
 
-void ObstacleAdvertiser::publish_obstacles()
+void ObstacleAdvertiser::publishObstacles()
 {
 	uam_mapping_msgs::msg::ObstacleArray obstacles;
 

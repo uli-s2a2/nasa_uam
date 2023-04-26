@@ -17,7 +17,7 @@ protected:
 	bool activate(uam_navigator_msgs::action::NavigatorCommand::Goal::ConstSharedPtr goal) override;
 	bool deactivate() override;
 	bool cleanup() override;
-	void publish_navigator_setpoint() override;
+	void publishNavigatorSetpoint() override;
 
 	// Class Variables
 	nav_msgs::msg::Odometry vehicle_odom_;

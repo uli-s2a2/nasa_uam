@@ -23,12 +23,12 @@ protected:
 	bool activate(uam_navigator_msgs::action::NavigatorCommand::Goal::ConstSharedPtr goal) override;
 	bool deactivate() override;
 	bool cleanup() override;
-	void publish_navigator_setpoint() override;
-	bool mission_complete();
-	void goal_response_callback(std::shared_future<PlannerGoalHandleActionT::SharedPtr> future);
-	void result_callback(const PlannerGoalHandleActionT::WrappedResult & result);
-	void update_waypoint();
-	void on_loop_callback();
+	void publishNavigatorSetpoint() override;
+	bool missionComplete();
+	void goalResponseCallback(std::shared_future<PlannerGoalHandleActionT::SharedPtr> future);
+	void resultCallback(const PlannerGoalHandleActionT::WrappedResult & result);
+	void updateWaypoint();
+	void onLoopCallback();
 
 	// ROS2
 	rclcpp::TimerBase::SharedPtr timer_;

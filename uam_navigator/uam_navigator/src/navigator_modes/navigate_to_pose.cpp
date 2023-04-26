@@ -51,7 +51,7 @@ bool NavigateToPose::activate(uam_navigator_msgs::action::NavigatorCommand::Goal
 		RCLCPP_ERROR(logger_, "Planner server is not available after waiting");
 		return false;
 	}
-	nav_msgs::msg::Odometry tmp_odom = navigator_->get_current_odom();
+	nav_msgs::msg::Odometry tmp_odom = navigator_->getCurrentOdom();
 	// Remove when I migrate to just map static frame
 	if (tmp_odom.header.frame_id == "map") {
 		vehicle_odom_.header.frame_id = "map";
@@ -83,9 +83,9 @@ bool NavigateToPose::activate(uam_navigator_msgs::action::NavigatorCommand::Goal
 	mission_complete_ = false;
 	auto send_goal_options = rclcpp_action::Client<PlannerActionT>::SendGoalOptions();
 	send_goal_options.goal_response_callback =
-	 		std::bind(&NavigateToPose::goal_response_callback, this, std::placeholders::_1);
+	 		std::bind(&NavigateToPose::goalResponseCallback, this, std::placeholders::_1);
 	send_goal_options.result_callback =
-	 		std::bind(&NavigateToPose::result_callback, this, std::placeholders::_1);
+	 		std::bind(&NavigateToPose::resultCallback, this, std::placeholders::_1);
 
 	planner_client_ptr_->async_send_goal(planner_goal_msg, send_goal_options);
 
@@ -94,15 +94,15 @@ bool NavigateToPose::activate(uam_navigator_msgs::action::NavigatorCommand::Goal
 	if (path_received_) {
 		timer_ = node->create_wall_timer(
 				std::chrono::duration<double>(1.0/update_frequency_),
-				std::bind(&NavigateToPose::on_loop_callback, this));
+				std::bind(&NavigateToPose::onLoopCallback, this));
 	}
 
 	return path_received_;
 }
 
-void NavigateToPose::on_loop_callback()
+void NavigateToPose::onLoopCallback()
 {
-	nav_msgs::msg::Odometry tmp_odom = navigator_->get_current_odom();
+	nav_msgs::msg::Odometry tmp_odom = navigator_->getCurrentOdom();
 	// Remove when I migrate to just map static frame
 	if (tmp_odom.header.frame_id == "map") {
 		vehicle_odom_.header.frame_id = "map";
@@ -116,15 +116,15 @@ void NavigateToPose::on_loop_callback()
 		vehicle_odom_.twist.twist.linear.y = tmp_odom.twist.twist.linear.x;
 		vehicle_odom_.twist.twist.linear.z = -tmp_odom.twist.twist.linear.z;
 	}
-	update_waypoint();
+	updateWaypoint();
 
-	if (mission_complete() && !mission_complete_) {
+	if (missionComplete() && !mission_complete_) {
 		mission_complete_ = true;
 		navigator_->loiter();
 	}
 }
 
-void NavigateToPose::goal_response_callback(std::shared_future<PlannerGoalHandleActionT::SharedPtr> future)
+void NavigateToPose::goalResponseCallback(std::shared_future<PlannerGoalHandleActionT::SharedPtr> future)
 {
 	auto node = node_.lock();
 	auto goal_handle = future.get();
@@ -136,7 +136,7 @@ void NavigateToPose::goal_response_callback(std::shared_future<PlannerGoalHandle
 	}
 }
 
-void NavigateToPose::result_callback(const PlannerGoalHandleActionT::WrappedResult & result)
+void NavigateToPose::resultCallback(const PlannerGoalHandleActionT::WrappedResult & result)
 {
 	auto node = node_.lock();
 
@@ -178,7 +178,7 @@ bool NavigateToPose::cleanup()
 	return true;
 }
 
-void NavigateToPose::publish_navigator_setpoint()
+void NavigateToPose::publishNavigatorSetpoint()
 {
 	auto node = node_.lock();
 	nav_msgs::msg::Odometry odom;
@@ -189,10 +189,10 @@ void NavigateToPose::publish_navigator_setpoint()
 	odom.pose.pose.position.y = path_.poses[current_path_waypoint_].pose.position.x;
 	odom.pose.pose.position.z = -path_.poses[current_path_waypoint_].pose.position.z;
 
-	navigator_->publish_odometry_setpoint(odom);
+	navigator_->publishOdometrySetpoint(odom);
 }
 
-void NavigateToPose::update_waypoint()
+void NavigateToPose::updateWaypoint()
 {
 	if (std::hypot(
 			vehicle_odom_.pose.pose.position.x - path_.poses[current_path_waypoint_].pose.position.x,
@@ -203,7 +203,7 @@ void NavigateToPose::update_waypoint()
 	}
 }
 
-bool NavigateToPose::mission_complete()
+bool NavigateToPose::missionComplete()
 {
 	bool mission_complete = false;
 	if (std::hypot(

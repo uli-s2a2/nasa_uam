@@ -53,17 +53,17 @@ protected:
 	using ActionServerToPose = uam_util::SimpleActionServer<ActionToPose>;
 
 	template<typename T>
-	bool is_server_inactive(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server);
+	bool isServerInactive(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server);
 	template<typename T>
-	bool is_cancel_requested(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server);
+	bool isCancelRequested(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server);
 	uam_util::CallbackReturn  on_configure(const rclcpp_lifecycle::State & state) override;
 	uam_util::CallbackReturn  on_activate(const rclcpp_lifecycle::State & state) override;
 	uam_util::CallbackReturn  on_deactivate(const rclcpp_lifecycle::State & state) override;
 	uam_util::CallbackReturn  on_cleanup(const rclcpp_lifecycle::State & state) override;
 	uam_util::CallbackReturn  on_shutdown(const rclcpp_lifecycle::State & state) override;
-	void compute_path();
-	void publish_path(const nav_msgs::msg::Path & path);
-	void exception_warning(
+	void computePath();
+	void publishPath(const nav_msgs::msg::Path & path);
+	void exceptionWarning(
 			const geometry_msgs::msg::PoseStamped & start,
 			const geometry_msgs::msg::PoseStamped & goal,
 			const std::string & planner_id,

@@ -73,14 +73,13 @@ private:
 	rclcpp::TimerBase::SharedPtr timer_;
 
 	// Private class methods
-	void publish_attitude_setpoint(const uam_control_msgs::msg::AttitudeSetpoint& msg);
-	void vehicle_odometry_callback(px4_msgs::msg::VehicleOdometry::UniquePtr msg);
-	void publish_offboard_control_mode();
-	void publish_vehicle_command(uint16_t command, float param1 = 0.0,float param2 = 0.0);
-	double compute_relative_thrust(const double &collective_thrust) const;
-	void enable_offboard_control();
-	void setup_static_transforms();
-	void setup_parameters();
+	void publishAttitudeSetpoint(const uam_control_msgs::msg::AttitudeSetpoint& msg);
+	void vehicleOdometryCallback(px4_msgs::msg::VehicleOdometry::UniquePtr msg);
+	void publishOffboardControlMode();
+	void publishVehicleCommand(uint16_t command, float param1 = 0.0,float param2 = 0.0);
+	double computeRelativeThrust(const double &collective_thrust) const;
+	void setupStaticTransforms();
+	void setupParameters();
 	void arm();
 	void disarm();
 };

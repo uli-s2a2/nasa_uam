@@ -25,7 +25,7 @@ public:
 	virtual void activate() = 0;
 	virtual void deactivate() = 0;
 
-	virtual nav_msgs::msg::Path create_path(
+	virtual nav_msgs::msg::Path createPath(
 			const geometry_msgs::msg::PoseStamped & start,
 			const geometry_msgs::msg::PoseStamped & goal) = 0;
 };

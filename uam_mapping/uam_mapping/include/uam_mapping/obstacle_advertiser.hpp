@@ -23,6 +23,6 @@ private:
 	std::vector<double> obstacles_x_;
 	std::vector<double> obstacles_y_;
 
-	void publish_obstacles();
+	void publishObstacles();
 };
 }

@@ -7,7 +7,7 @@ using namespace Eigen;
 
 QLearningController::QLearningController() : rclcpp::Node("uam_control")
 {
-	compute_svec_matrix();
+	computeSvecMatrix();
 	state_vector_.setZero();
 	control_vector_.setZero();
 	critic_augmented_state_kronecker_prior_.setZero();
@@ -51,9 +51,9 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 						}
 						navigator_setpoint_ = *msg;
 
-						auto state_vector = compute_state_vector();
-						auto control = compute_control(state_vector);
-						publish_control_mellinger(control);
+						auto state_vector = computeStateVector();
+						auto control = computeControl(state_vector);
+						publishControlMellinger(control);
 					});
 	// TODO: remove dependence on px4_msgs
 	vehicle_status_sub_ =
@@ -69,7 +69,7 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 						time_resolution_ = msg_time.seconds() - vehicle_odom_time.seconds();
 //						RCLCPP_INFO(get_logger(), "time resolution: %.4f", time_resolution_);
 					    vehicle_odometry_ = *msg;
-						if (can_learn() && time_resolution_ < 0.1) {
+						if (canLearn() && time_resolution_ < 0.1) {
 							//------- Q-Learning -------------
 							learn();
 						} else {
@@ -97,7 +97,7 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 //	timer_ = this->create_wall_timer(std::chrono::duration<double>(time_resolution_), timer_callback);
 }
 
-bool QLearningController::can_learn() const
+bool QLearningController::canLearn() const
 {
 	bool out;
 	out =   abs(vehicle_odometry_.pose.pose.position.z) > minimum_altitude_for_learning_ &&
@@ -106,7 +106,7 @@ bool QLearningController::can_learn() const
 	return out;
 }
 
-state_vector_t QLearningController::compute_state_vector() const
+state_vector_t QLearningController::computeStateVector() const
 {
 	state_vector_t state_vector;
 	state_vector << vehicle_odometry_.pose.pose.position.x - navigator_setpoint_.pose.pose.position.x,
@@ -122,12 +122,12 @@ void QLearningController::learn()
 	double current_time = (this->get_clock()->now().seconds() - start_time_.seconds());
 
 	// Setup
-	state_vector_ = compute_state_vector();
-	control_vector_ = compute_control(state_vector_);
+	state_vector_ = computeStateVector();
+	control_vector_ = computeControl(state_vector_);
 	augmented_state_vector_ << state_vector_, control_vector_;
 	critic_augmented_state_kronecker_ = vec_to_svec_transform_matrix_ * kroneckerProduct(augmented_state_vector_, augmented_state_vector_);
-	critic_radial_basis_matrix_ = compute_critic_radial_basis_matrix(current_time);
-	actor_radial_basis_matrix_ = compute_actor_radial_basis_matrix(current_time);
+	critic_radial_basis_matrix_ = computeCriticRadialBasisMatrix(current_time);
+	actor_radial_basis_matrix_ = computeActorRadialBasisMatrix(current_time);
 
 
 	if (is_setpoint_new_) {
@@ -144,7 +144,7 @@ void QLearningController::learn()
 	sigma_f << -critic_radial_basis_matrix_ * critic_augmented_state_kronecker_;
 
 	critic_error_1_ = critic_weight_vector_.transpose() * (critic_radial_basis_matrix_ * critic_augmented_state_kronecker_
-			- compute_critic_radial_basis_matrix(current_time - time_resolution_) * critic_augmented_state_kronecker_prior_)
+			- computeCriticRadialBasisMatrix(current_time - time_resolution_) * critic_augmented_state_kronecker_prior_)
 			+ running_cost_ - running_cost_prior_;
 	critic_error_2_ = 0.5 * (state_vector_.transpose() * terminal_riccati_matrix_).dot(state_vector_)
 			- critic_weight_vector_.transpose().dot(sigma_f);
@@ -170,7 +170,7 @@ void QLearningController::learn()
 	// Q value
 	quality_value_ = critic_weight_vector_.transpose() * critic_radial_basis_matrix_ * critic_augmented_state_kronecker_;
 
-	publish_qlearning_status();
+	publishQlearningStatus();
 
 	// Update weights
 	critic_weight_vector_ += critic_weight_dot * time_resolution_;
@@ -180,23 +180,23 @@ void QLearningController::learn()
 			+ (control_vector_.transpose() * control_penalty_matrix_).dot(control_vector_)) * time_resolution_;
 	critic_augmented_state_kronecker_prior_ = critic_augmented_state_kronecker_;
 }
-control_vector_t QLearningController::compute_control(const mavState& state_vector)
+control_vector_t QLearningController::computeControl(const mavState& state_vector)
 {
 	double current_time = (this->get_clock()->now().seconds() - start_time_.seconds());
-	return actor_weight_matrix_.transpose() * compute_actor_radial_basis_matrix(current_time) * state_vector;
+	return actor_weight_matrix_.transpose() * computeActorRadialBasisMatrix(current_time) * state_vector;
 }
 
-critic_radial_basis_matrix_t QLearningController::compute_critic_radial_basis_matrix(double t)
+critic_radial_basis_matrix_t QLearningController::computeCriticRadialBasisMatrix(double t)
 {
 	(void) t; // fix unused time argument warnings
 	return critic_radial_basis_matrix_t::Identity();
 }
-actor_radial_basis_matrix_t QLearningController::compute_actor_radial_basis_matrix(double t)
+actor_radial_basis_matrix_t QLearningController::computeActorRadialBasisMatrix(double t)
 {
 	(void) t; // fix unused time argument warnings
 	return actor_radial_basis_matrix_t::Identity();
 }
-void QLearningController::compute_svec_matrix()
+void QLearningController::computeSvecMatrix()
 {
 	svec_matrix_t vec_to_svec_transform_matrix;
 	vec_to_svec_transform_matrix.setZero();
@@ -223,7 +223,7 @@ void QLearningController::compute_svec_matrix()
 	}
 	vec_to_svec_transform_matrix_ = vec_to_svec_transform_matrix;
 }
-void QLearningController::publish_control_mellinger(const control_vector_t& control_vector)
+void QLearningController::publishControlMellinger(const control_vector_t& control_vector)
 {
 	Vector3d thrust_des;
 	uam_control_msgs::msg::AttitudeSetpoint attitude_setpoint;
@@ -276,7 +276,7 @@ void QLearningController::publish_control_mellinger(const control_vector_t& cont
 	vehicle_attitude_setpoint_pub_->publish(attitude_setpoint);
 }
 
-void QLearningController::publish_qlearning_status()
+void QLearningController::publishQlearningStatus()
 {
 	uam_control_msgs::msg::QLearningStatus qlearning_status;
 

@@ -96,7 +96,7 @@ PlannerServer::on_configure(const rclcpp_lifecycle::State &state)
 	action_server_pose_ = std::make_unique<ActionServerToPose>(
 			shared_from_this(),
 			"compute_path_to_pose",
-			std::bind(&PlannerServer::compute_path, this),
+			std::bind(&PlannerServer::computePath, this),
 			nullptr,
 			std::chrono::milliseconds(500),
 			true);
@@ -165,7 +165,7 @@ PlannerServer::on_shutdown(const rclcpp_lifecycle::State &state)
 }
 
 template<typename T>
-bool PlannerServer::is_server_inactive(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server)
+bool PlannerServer::isServerInactive(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server)
 {
 	if (action_server == nullptr || !action_server->is_server_active()) {
 		RCLCPP_DEBUG(get_logger(), "Action server unavailable or inactive. Stopping.");
@@ -176,7 +176,7 @@ bool PlannerServer::is_server_inactive(std::unique_ptr<uam_util::SimpleActionSer
 }
 
 template<typename T>
-bool PlannerServer::is_cancel_requested(
+bool PlannerServer::isCancelRequested(
 		std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server)
 {
 	if (action_server->is_cancel_requested()) {
@@ -189,7 +189,7 @@ bool PlannerServer::is_cancel_requested(
 }
 
 
-void PlannerServer::publish_path(const nav_msgs::msg::Path & path)
+void PlannerServer::publishPath(const nav_msgs::msg::Path & path)
 {
 	auto msg = std::make_unique<nav_msgs::msg::Path>(path);
 	if (path_publisher_->is_activated() && path_publisher_->get_subscription_count() > 0) {
@@ -197,7 +197,7 @@ void PlannerServer::publish_path(const nav_msgs::msg::Path & path)
 	}
 }
 
-void PlannerServer::compute_path()
+void PlannerServer::computePath()
 {
 	auto start_time = steady_clock_.now();
 
@@ -207,46 +207,46 @@ void PlannerServer::compute_path()
 	geometry_msgs::msg::PoseStamped start_pose;
 
 	try{
-		if (is_server_inactive(action_server_pose_) || is_cancel_requested(action_server_pose_)) {
+		if (isServerInactive(action_server_pose_) || isCancelRequested(action_server_pose_)) {
 			return;
 		}
 
 		result->path = get_path(goal->start, goal->goal, goal->planner_id);
 
-		publish_path(result->path);
+		publishPath(result->path);
 		auto cycle_duration = steady_clock_.now() - start_time;
 		result->planning_time = cycle_duration;
 		action_server_pose_->succeeded_current(result);
 	} catch (uam_planner::InvalidPlanner & ex) {
-		exception_warning(goal->start, goal->goal, goal->planner_id, ex);
+		exceptionWarning(goal->start, goal->goal, goal->planner_id, ex);
 		result->error_code = ActionToPoseGoal::INVALID_PLANNER;
 		action_server_pose_->terminate_current(result);
 	} catch (uam_planner::StartOccupied & ex) {
-		exception_warning(goal->start, goal->goal, goal->planner_id, ex);
+		exceptionWarning(goal->start, goal->goal, goal->planner_id, ex);
 		result->error_code = ActionToPoseGoal::START_OCCUPIED;
 		action_server_pose_->terminate_current(result);
 	} catch (uam_planner::GoalOccupied & ex) {
-		exception_warning(goal->start, goal->goal, goal->planner_id, ex);
+		exceptionWarning(goal->start, goal->goal, goal->planner_id, ex);
 		result->error_code = ActionToPoseGoal::GOAL_OCCUPIED;
 		action_server_pose_->terminate_current(result);
 	} catch (uam_planner::NoValidPathCouldBeFound & ex) {
-		exception_warning(goal->start, goal->goal, goal->planner_id, ex);
+		exceptionWarning(goal->start, goal->goal, goal->planner_id, ex);
 		result->error_code = ActionToPoseGoal::NO_VALID_PATH;
 		action_server_pose_->terminate_current(result);
 	} catch (uam_planner::PlannerTimedOut & ex) {
-		exception_warning(goal->start, goal->goal, goal->planner_id, ex);
+		exceptionWarning(goal->start, goal->goal, goal->planner_id, ex);
 		result->error_code = ActionToPoseGoal::TIMEOUT;
 		action_server_pose_->terminate_current(result);
 	} catch (uam_planner::StartOutsideMapBounds & ex) {
-		exception_warning(goal->start, goal->goal, goal->planner_id, ex);
+		exceptionWarning(goal->start, goal->goal, goal->planner_id, ex);
 		result->error_code = ActionToPoseGoal::START_OUTSIDE_MAP;
 		action_server_pose_->terminate_current(result);
 	} catch (uam_planner::GoalOutsideMapBounds & ex) {
-		exception_warning(goal->start, goal->goal, goal->planner_id, ex);
+		exceptionWarning(goal->start, goal->goal, goal->planner_id, ex);
 		result->error_code = ActionToPoseGoal::GOAL_OUTSIDE_MAP;
 		action_server_pose_->terminate_current(result);
 	} catch (std::exception & ex) {
-		exception_warning(goal->start, goal->goal, goal->planner_id, ex);
+		exceptionWarning(goal->start, goal->goal, goal->planner_id, ex);
 		result->error_code = ActionToPoseGoal::UNKNOWN;
 		action_server_pose_->terminate_current(result);
 	}
@@ -263,14 +263,14 @@ nav_msgs::msg::Path PlannerServer::get_path(
 			goal.pose.position.x, goal.pose.position.y);
 
 	if (planners_.find(planner_id) != planners_.end()) {
-		return planners_[planner_id]->create_path(start, goal);
+		return planners_[planner_id]->createPath(start, goal);
 	} else {
 		if (planners_.size() == 1 && planner_id.empty()) {
 			RCLCPP_WARN_ONCE(
 					get_logger(), "No planners specified in action call. "
 					              "Server will use only plugin %s in server."
 					              " This warning will appear once.", planner_ids_concat_.c_str());
-			return planners_[planners_.begin()->first]->create_path(start, goal);
+			return planners_[planners_.begin()->first]->createPath(start, goal);
 		} else {
 			RCLCPP_ERROR(
 					get_logger(), "planner %s is not a valid planner. "
@@ -284,7 +284,7 @@ nav_msgs::msg::Path PlannerServer::get_path(
 }
 
 
-void PlannerServer::exception_warning(
+void PlannerServer::exceptionWarning(
 		const geometry_msgs::msg::PoseStamped & start,
 		const geometry_msgs::msg::PoseStamped & goal,
 		const std::string & planner_id,

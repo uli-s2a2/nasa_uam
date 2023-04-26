@@ -32,7 +32,7 @@ bool Loiter::activate(uam_navigator_msgs::action::NavigatorCommand::Goal::ConstS
 	auto node = node_.lock();
 	(void)goal;
 	RCLCPP_INFO(node->get_logger(), "Activating loiter flight mode");
-	vehicle_odom_ = navigator_->get_current_odom();
+	vehicle_odom_ = navigator_->getCurrentOdom();
 	loiter_position_.header.frame_id = vehicle_odom_.header.frame_id;
 	loiter_position_.header.stamp = vehicle_odom_.header.stamp;
 	loiter_position_.pose.position.x = vehicle_odom_.pose.pose.position.x;
@@ -57,7 +57,7 @@ bool Loiter::cleanup()
 	return true;
 }
 
-void Loiter::publish_navigator_setpoint()
+void Loiter::publishNavigatorSetpoint()
 {
 	auto node = node_.lock();
 	nav_msgs::msg::Odometry odom;
@@ -65,7 +65,7 @@ void Loiter::publish_navigator_setpoint()
 	odom.header.stamp = clock_->now();
 	odom.child_frame_id = "baselink_frd";
 	odom.pose.pose = loiter_position_.pose;
-	navigator_->publish_odometry_setpoint(odom);
+	navigator_->publishOdometrySetpoint(odom);
 }
 
 }

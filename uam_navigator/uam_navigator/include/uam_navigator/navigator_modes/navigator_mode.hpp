@@ -30,7 +30,7 @@ public:
 	virtual bool activate(uam_navigator_msgs::action::NavigatorCommand::Goal::ConstSharedPtr goal) = 0;
 	virtual bool deactivate() = 0;
 	virtual bool cleanup() = 0;
-	virtual void publish_navigator_setpoint() = 0;
+	virtual void publishNavigatorSetpoint() = 0;
 
 protected:
 	rclcpp::Clock::SharedPtr clock_;

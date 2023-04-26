@@ -41,14 +41,14 @@ public:
 	uam_util::CallbackReturn  on_cleanup(const rclcpp_lifecycle::State & state) override;
 	uam_util::CallbackReturn  on_shutdown(const rclcpp_lifecycle::State & state) override;
 
-	nav_msgs::msg::Odometry get_current_odom() {return vehicle_odom_;}
-	void publish_odometry_setpoint(nav_msgs::msg::Odometry odom_msg);
+	nav_msgs::msg::Odometry getCurrentOdom() {return vehicle_odom_;}
+	void publishOdometrySetpoint(nav_msgs::msg::Odometry odom_msg);
 
 	void land();
 	void takeoff();
 	void loiter();
 
-	std::shared_ptr<uam_navigator::Navigator> nav_shared_from_this()
+	std::shared_ptr<uam_navigator::Navigator> navSharedFromThis()
 	{
 		return std::static_pointer_cast<uam_navigator::Navigator>(rclcpp_lifecycle::LifecycleNode::shared_from_this());
 	}
@@ -78,12 +78,12 @@ protected:
 	bool mission_complete_{false};
 
 	// Class methods
-	void on_loop();
-	void command_callback();
+	void onLoop();
+	void commandCallback();
 	template<typename T>
-	bool is_server_inactive(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server);
+	bool isServerInactive(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server);
 	template<typename T>
-	bool is_cancel_requested(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server);
+	bool isCancelRequested(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server);
 }; // Class RRTX
 }
 

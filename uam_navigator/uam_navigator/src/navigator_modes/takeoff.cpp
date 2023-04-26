@@ -42,7 +42,7 @@ bool Takeoff::activate(uam_navigator_msgs::action::NavigatorCommand::Goal::Const
 	auto node = node_.lock();
 	RCLCPP_INFO(logger_, "Activating takeoff flight mode");
 	(void)goal;
-	vehicle_odom_ = navigator_->get_current_odom();
+	vehicle_odom_ = navigator_->getCurrentOdom();
 	takeoff_position_.header.frame_id = vehicle_odom_.header.frame_id;
 	takeoff_position_.header.stamp = vehicle_odom_.header.stamp;
 	takeoff_position_.pose.position.x = vehicle_odom_.pose.pose.position.x;
@@ -51,14 +51,14 @@ bool Takeoff::activate(uam_navigator_msgs::action::NavigatorCommand::Goal::Const
 
 	timer_ = node->create_wall_timer(
 			std::chrono::duration<double>(1.0/update_frequency_),
-			std::bind(&Takeoff::on_loop_callback, this));
+			std::bind(&Takeoff::onLoopCallback, this));
 	return true;
 }
 
-void Takeoff::on_loop_callback()
+void Takeoff::onLoopCallback()
 {
-	vehicle_odom_ = navigator_->get_current_odom();
-	if (mission_complete() && !mission_complete_) {
+	vehicle_odom_ = navigator_->getCurrentOdom();
+	if (missionComplete() && !mission_complete_) {
 		mission_complete_ = true;
 		navigator_->loiter();
 	}
@@ -81,7 +81,7 @@ bool Takeoff::cleanup()
 	return true;
 }
 
-void Takeoff::publish_navigator_setpoint()
+void Takeoff::publishNavigatorSetpoint()
 {
 	auto node = node_.lock();
 
@@ -90,10 +90,10 @@ void Takeoff::publish_navigator_setpoint()
 	odom.header.stamp = node->get_clock()->now();
 	odom.child_frame_id = "baselink_frd";
 	odom.pose.pose = takeoff_position_.pose;
-	navigator_->publish_odometry_setpoint(odom);
+	navigator_->publishOdometrySetpoint(odom);
 }
 
-bool Takeoff::mission_complete()
+bool Takeoff::missionComplete()
 {
 	bool mission_complete = false;
 	if (std::hypot(

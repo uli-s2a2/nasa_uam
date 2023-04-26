@@ -19,7 +19,7 @@ private:
 
 	rclcpp::Subscription<uam_mapping_msgs::msg::ObstacleArray>::SharedPtr obstacle_array_sub_;
 
-	void publish_obstacle_markers(const uam_mapping_msgs::msg::ObstacleArray::SharedPtr msg);
+	void publishObstacleMarkers(const uam_mapping_msgs::msg::ObstacleArray::SharedPtr msg);
 	void publish_waypoint();
 };
 }

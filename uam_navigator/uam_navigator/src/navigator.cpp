@@ -29,7 +29,7 @@ Navigator::on_configure(const rclcpp_lifecycle::State &)
 	navigator_status_publisher_ = node->create_publisher<uam_navigator_msgs::msg::NavigatorStatus>("/uam_navigator/navigator_status", 10);
 
 	for (const auto & navigator : navigators_) {
-		navigator.second->configure(node, nav_shared_from_this(), navigator.first);
+		navigator.second->configure(node, navSharedFromThis(), navigator.first);
 	}
 
 	navigator_transitions_.insert({"Takeoff", std::vector<std::string>{"Loiter", "Land"}});
@@ -42,7 +42,7 @@ Navigator::on_configure(const rclcpp_lifecycle::State &)
 	navigator_transitions_.insert({"Idle", std::vector<std::string>{"Takeoff"}});
 
 	timer_ = node->create_wall_timer(std::chrono::milliseconds(10),
-								  std::bind(&Navigator::on_loop, this));
+								  std::bind(&Navigator::onLoop, this));
 
 	vehicle_odometry_sub_ =
 			node->create_subscription<nav_msgs::msg::Odometry>(
@@ -59,7 +59,7 @@ Navigator::on_configure(const rclcpp_lifecycle::State &)
 	nav_command_action_server_ = std::make_unique<ActionServerNavigatorCommand>(
 			shared_from_this(),
 			"send_navigator_command",
-			std::bind(&Navigator::command_callback, this),
+			std::bind(&Navigator::commandCallback, this),
 			nullptr,
 			std::chrono::milliseconds(500),
 			true);
@@ -133,7 +133,7 @@ Navigator::on_shutdown(const rclcpp_lifecycle::State &)
 	return uam_util::CallbackReturn::SUCCESS;
 }
 
-void Navigator::on_loop()
+void Navigator::onLoop()
 {
 	auto node = shared_from_this();
 
@@ -146,53 +146,7 @@ void Navigator::on_loop()
 		return;
 	}
 
-
-//	// Transition from command
-//	if (current_nav_mode_ != requested_nav_mode_) {
-//		if (std::find(
-//				navigator_transitions_[current_nav_mode_].begin(),
-//				navigator_transitions_[current_nav_mode_].end(),
-//				requested_nav_mode_) != navigator_transitions_[current_nav_mode_].end()) {
-//			bool activate_request_success = false;
-//			switch (requested_nav_mode_) {
-//				case NAV_MODE_TAKEOFF:
-//				case NAV_MODE_LOITER:
-//				{
-//					activate_request_success = navigators_[requested_nav_mode_]->activate(vehicle_odom_, nav_msgs::msg::Odometry());
-//					break;
-//				}
-//				case NAV_MODE_NAVIGATE_TO_POSE:
-//				{
-//					nav_msgs::msg::Odometry goal;
-//					goal.header.stamp = node->get_clock()->now();
-//					goal.header.frame_id = "map_ned";
-//					goal.pose.pose.position.x =  3.9624;
-//					goal.pose.pose.position.y =  3.3528;
-//					goal.pose.pose.position.z = -0.6;
-//					activate_request_success = navigators_[requested_nav_mode_]->activate(goal);
-//					break;
-//				}
-//				case NAV_MODE_LAND:
-//				{
-//					RCLCPP_DEBUG(node->get_logger(), "Land mode not implemented yet.");
-//					requested_nav_mode_ = current_nav_mode_;
-//					break;
-//				}
-//			}
-//			if (activate_request_success) {
-//				std::cout << "Activate request success... " << std::endl;
-//				if (current_nav_mode_ != NAV_MODE_IDLE) {
-//					navigators_[current_nav_mode_]->deactivate();
-//				}
-//				current_nav_mode_ = requested_nav_mode_;
-//			}
-//		} else {
-//			RCLCPP_DEBUG(node->get_logger(), "Requested navigator flight mode invalid transition.");
-//			requested_nav_mode_ = current_nav_mode_;
-//		}
-//	}
-
-	navigators_[current_nav_mode_]->publish_navigator_setpoint();
+	navigators_[current_nav_mode_]->publishNavigatorSetpoint();
 
 }
 
@@ -217,13 +171,13 @@ void Navigator::land()
 	nav_command_action_client_->async_send_goal(nav_command_request);
 }
 
-void Navigator::publish_odometry_setpoint(nav_msgs::msg::Odometry odom_msg)
+void Navigator::publishOdometrySetpoint(nav_msgs::msg::Odometry odom_msg)
 {
 	position_setpoint_publisher_->publish(odom_msg);
 }
 
 
-void Navigator::command_callback()
+void Navigator::commandCallback()
 {
 
 	auto goal = nav_command_action_server_->get_current_goal();
@@ -232,7 +186,7 @@ void Navigator::command_callback()
 	RCLCPP_DEBUG(get_logger(), "Received command %s", goal->command.c_str());
 
 	try {
-		if (is_server_inactive(nav_command_action_server_) || is_cancel_requested(nav_command_action_server_)) {
+		if (isServerInactive(nav_command_action_server_) || isCancelRequested(nav_command_action_server_)) {
 			return;
 		}
 		if (navigators_.find(goal->command) == navigators_.end()) {
@@ -280,7 +234,7 @@ void Navigator::command_callback()
 }
 
 template<typename T>
-bool Navigator::is_server_inactive(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server)
+bool Navigator::isServerInactive(std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server)
 {
 	if (action_server == nullptr || !action_server->is_server_active()) {
 		RCLCPP_DEBUG(get_logger(), "Action server unavailable or inactive. Stopping.");
@@ -291,7 +245,7 @@ bool Navigator::is_server_inactive(std::unique_ptr<uam_util::SimpleActionServer<
 }
 
 template<typename T>
-bool Navigator::is_cancel_requested(
+bool Navigator::isCancelRequested(
 		std::unique_ptr<uam_util::SimpleActionServer<T>> & action_server)
 {
 	if (action_server->is_cancel_requested()) {

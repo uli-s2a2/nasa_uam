@@ -39,7 +39,7 @@ public:
 
 	void deactivate() override;
 
-	nav_msgs::msg::Path create_path(
+	nav_msgs::msg::Path createPath(
 			const geometry_msgs::msg::PoseStamped & start,
 			const geometry_msgs::msg::PoseStamped & goal) override;
 

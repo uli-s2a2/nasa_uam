@@ -2,7 +2,6 @@
 
 
 using namespace uam_visualization;
-using std::placeholders::_1;
 
 Visualization::Visualization() : Node("uam_visualization")
 {
@@ -17,10 +16,10 @@ Visualization::Visualization() : Node("uam_visualization")
 	// ----------------------- Subscribers --------------------------
 	obstacle_array_sub_ =
 			this->create_subscription<uam_mapping_msgs::msg::ObstacleArray>(
-					"uam_mapping/obstacles", 10, std::bind(&Visualization::publish_obstacle_markers, this, _1));
+					"uam_mapping/obstacles", 10, std::bind(&Visualization::publishObstacleMarkers, this, std::placeholders::_1));
 }
 
-void Visualization::publish_obstacle_markers(const uam_mapping_msgs::msg::ObstacleArray::SharedPtr msg)
+void Visualization::publishObstacleMarkers(const uam_mapping_msgs::msg::ObstacleArray::SharedPtr msg)
 {
 	visualization_msgs::msg::MarkerArray obstacle_marker_array;
 	for(auto & obstacle : msg->obstacles)
@@ -61,28 +60,6 @@ void Visualization::publish_obstacle_markers(const uam_mapping_msgs::msg::Obstac
 	}
 	obstacle_marker_pub_->publish(obstacle_marker_array);
 }
-
-//void Visualization::publish_waypoint()
-//{
-//	nav_msgs::msg::Odometry odom_ref;
-//	auto path_ptr = prob_def_ptr->getSolutionPath()->as<og::PathGeometric>();
-//	ob::SE3StateSpace::StateType *state;
-//	if (current_waypoint_+1 == path_ptr->getStateCount()) {
-//		state = path_ptr->getState(current_waypoint_)->as<ob::SE3StateSpace::StateType>();
-//	} else {
-//		state = path_ptr->getState(current_waypoint_ + 1)->as<ob::SE3StateSpace::StateType>();
-//	}
-//	odom_ref.header.stamp = get_clock()->now();
-//	odom_ref.header.frame_id = "map";
-//	odom_ref.pose.pose.position.x = state->getY();
-//	odom_ref.pose.pose.position.y = state->getX();
-//	odom_ref.pose.pose.position.z = -state->getZ();
-//	odom_ref.twist.twist.linear.x = 0.0;
-//	odom_ref.twist.twist.linear.y = 0.0;
-//	odom_ref.twist.twist.linear.z = 0.0;
-//
-//	odom_ref_pub_->publish(odom_ref);
-//}
 
 int main(int argc, char *argv[])
 {

@@ -140,7 +140,7 @@ void RrtxStatic::cleanup()
 
 }
 
-nav_msgs::msg::Path RrtxStatic::create_path(
+nav_msgs::msg::Path RrtxStatic::createPath(
 		const geometry_msgs::msg::PoseStamped & start,
         const geometry_msgs::msg::PoseStamped & goal)
 {

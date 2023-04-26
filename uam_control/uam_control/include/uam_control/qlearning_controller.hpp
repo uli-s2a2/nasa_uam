@@ -148,21 +148,14 @@ private:
 
 	// Class methods
 	void learn();
-	control_vector_t compute_control(const state_vector_t& state_vector);
-	state_vector_t compute_state_vector() const;
-	bool can_learn() const;
+	control_vector_t computeControl(const state_vector_t& state_vector);
+	state_vector_t computeStateVector() const;
+	bool canLearn() const;
 
-	critic_radial_basis_matrix_t compute_critic_radial_basis_matrix(double t);
-	actor_radial_basis_matrix_t compute_actor_radial_basis_matrix(double t);
-	void compute_svec_matrix();
-	void publish_control_mellinger(const control_vector_t& control_vector);
-	void publish_qlearning_status();
-//	void publish_control_fbl();
-//	void arm() const;
-//	void disarm() const;
-//	void publish_control();
-//	void publish_offboard_control_mode() const;
-//	void publish_vehicle_command(uint16_t command, float param1 = 0.0,
-//	                             float param2 = 0.0) const;
+	critic_radial_basis_matrix_t computeCriticRadialBasisMatrix(double t);
+	actor_radial_basis_matrix_t computeActorRadialBasisMatrix(double t);
+	void computeSvecMatrix();
+	void publishControlMellinger(const control_vector_t& control_vector);
+	void publishQlearningStatus();
 };// Class QLearningController
 }
