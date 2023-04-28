@@ -29,9 +29,9 @@ planner_server:
 
 static_obstacle_advertiser:
   ros__parameters:
-    obstacle_ids: []
-    obstacles_x: []
-    obstacles_y: []
+    obstacle_ids: ['1']
+    obstacles_x: [10.0]
+    obstacles_y: [10.0]
 #    obstacle_ids: ['1', '2', '3', '4', '5', '6',
 #                   '7', '8', '9', '10', '11', '12',
 #                   '13', '14', '15', '16', '17', '18',
