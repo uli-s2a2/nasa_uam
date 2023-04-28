@@ -14,14 +14,14 @@ navigator:
       position_tolerance: 0.2
       velocity_tolerance: 0.3
     navigate_to_pose:
-      planner: "RrtxStatic"
+      planner: "rrtx_static"
       waypoint_position_tolerance: 0.2
       goal_position_tolerance: 0.1
       goal_velocity_tolerance: 0.1
 
 planner_server:
   ros__parameters:
-    planner_plugins: ["RrtxStatic"]
+    planner_plugins: ["rrtx_static"]
     global_frame: "map"
     robot_base_frame: "base_link"
     RrtxStatic:
