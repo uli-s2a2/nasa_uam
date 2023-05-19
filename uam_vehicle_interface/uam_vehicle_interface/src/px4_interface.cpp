@@ -322,13 +322,16 @@ void Px4Interface::setupStaticTransforms()
 
 double Px4Interface::computeRelativeThrust(const double &collective_thrust) const
 {
-	if (environment_ == "SITL") {
+	if (environment_ == "Gazebo") {
 		double motor_speed = sqrt(collective_thrust / (4.0 * motor_constant_));
 		double thrust_command = (motor_speed - motor_velocity_armed_) / motor_input_scaling_;
 //	float rel_thrust = (collective_thrust - min_thrust_) / (max_thrust_ - min_thrust_);
 //	return (0.54358075f * rel_thrust + 0.f * sqrtf(3.6484f * rel_thrust + 0.00772641f) - 0.021992793f);
 		return thrust_command;
 
+	} else if (environment_ == "AirSim") {
+		double thrust_command = (collective_thrust / (4.0 * motor_thrust_max_) - 0.2) / 0.8;
+		return thrust_command;
 	} else if (environment_ == "Vehicle") {
 		double rel_thrust = ((collective_thrust / 4.0) - motor_thrust_armed_) / (motor_thrust_max_ - motor_thrust_armed_);
 

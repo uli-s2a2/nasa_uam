@@ -111,6 +111,7 @@ void RrtxStatic::configure(
 	space_info_ptr_->setStateValidityCheckingResolution(0.01);
 	prob_def_ptr_ = std::make_shared<ompl::base::ProblemDefinition>(space_info_ptr_);
 	planner_ptr_ = std::make_shared<ompl::geometric::RRTXstatic>(space_info_ptr_);
+    planner_ptr_->as<ompl::geometric::RRTXstatic>()->setRange(5.0);
 	planner_ptr_->setProblemDefinition(prob_def_ptr_);
 }
 

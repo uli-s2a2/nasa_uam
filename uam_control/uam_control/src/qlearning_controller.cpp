@@ -12,10 +12,10 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 	control_vector_.setZero();
 	critic_augmented_state_kronecker_prior_.setZero();
 
-	terminal_riccati_matrix_.diagonal() << 100.0, 100.0, 100.0, 10.0, 10.0, 10.0;
+	terminal_riccati_matrix_.diagonal() << 30.0, 30.0, 30.0, 5.0, 5.0, 5.0;
 
 	state_penalty_matrix_.setZero();
-	state_penalty_matrix_.diagonal() << 10.0, 10.0, 10.0, 30.0, 30.0, 30.0;
+	state_penalty_matrix_.diagonal() << 10.0, 10.0, 10.0, 5.0, 5.0, 5.0;
 	control_penalty_matrix_.setZero();
 	control_penalty_matrix_.diagonal() << 20.0, 20.0, 20.0;
 
@@ -24,12 +24,13 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 		declare_parameter("rrtx_static.actor_convergence_rate",rclcpp::ParameterValue(0.1));
 		declare_parameter("rrtx_static.minimum_altitude_for_learning",rclcpp::ParameterValue(0.6));
 		declare_parameter("rrtx_static.learning_update_frequency",rclcpp::ParameterValue(100.0));
+		declare_parameter("rrtx_static.desired_yaw_angle",rclcpp::ParameterValue(0.0));
 
 		get_parameter("rrtx_static.critic_convergence_rate",critic_convergence_rate_);
 		get_parameter("rrtx_static.actor_convergence_rate",actor_convergence_rate_);
 		get_parameter("rrtx_static.minimum_altitude_for_learning",minimum_altitude_for_learning_);
 		get_parameter("rrtx_static.learning_update_frequency",learning_update_frequency_);
-
+		get_parameter("rrtx_static.desired_yaw_angle", yaw_des_);
 	} catch (const rclcpp::ParameterTypeException & ex) {
 		RCLCPP_ERROR(get_logger(), "Parameter type exception thrown");
 	}
@@ -42,9 +43,9 @@ QLearningController::QLearningController() : rclcpp::Node("uam_control")
 							is_setpoint_new_ = true;
 							start_time_ = this->get_clock()->now();
 							// reset weights
-							critic_weight_vector_ << 10.83,0.00,0.00,11.72,0.00,0.00,2.93,0.00,0.00,10.83,0.00,0.00,11.72,0.00,0.00,2.93,0.00,10.83,0.00,0.00,11.72,0.00,0.00,2.93,11.99,0.00,0.00,4.24,0.00,0.00,11.99,0.00,0.00,4.24,0.00,11.99,0.00,0.00,4.24,1.00,0.00,0.00,1.00,0.00,1.00;
+							critic_weight_vector_ << 14.12,0.00,0.00,22.90,0.00,0.00,10.00,0.00,0.00,14.12,0.00,0.00,22.90,0.00,0.00,10.00,0.00,14.12,0.00,0.00,22.90,0.00,0.00,10.00,29.54,0.00,0.00,18.24,0.00,0.00,29.54,0.00,0.00,18.24,0.00,29.54,0.00,0.00,18.24,10.00,0.00,0.00,10.00,0.00,10.00;
 
-							actor_weight_matrix_ <<  -2.07,0.00,0.00,0.00,-2.07,0.00,0.00,0.00,-2.07,-3.00,0.00,0.00,0.00,-3.00,0.00,0.00,0.00,-3.00;
+							actor_weight_matrix_ <<  -0.71,0.00,0.00,0.00,-0.71,0.00,0.00,0.00,-0.71,-1.29,0.00,0.00,0.00,-1.29,0.00,0.00,0.00,-1.29;
 
 							running_cost_ = 0;
 							running_cost_prior_ = 0;
@@ -151,7 +152,7 @@ void QLearningController::learn()
 //
 	critic_weight_vector_t critic_weight_dot = -critic_convergence_rate_
 			* ((sigma /pow(1.0 + sigma.squaredNorm(), 2))*critic_error_1_)
-			- 0.0*critic_convergence_rate_ * (sigma_f /pow(1.0 + sigma_f.squaredNorm(), 2))*critic_error_2_;
+			- 0.0*critic_convergence_rate_ * (sigma_f /pow(1.0 + sigma_f.squaredNorm(), 2)) * critic_error_2_;
 //	critic_weight_vector_t critic_weight_dot = -critic_convergence_rate_
 //			* ((sigma /pow(1.0 + sigma.transpose()*sigma, 2))*critic_error_1_)
 //			- exp(8.0*current_time - 5.0) * (critic_convergence_rate_ / 2.0) *(sigma_f /pow(1.0 + sigma_f.transpose()*sigma_f, 2))*critic_error_2_;
@@ -200,10 +201,10 @@ void QLearningController::computeSvecMatrix()
 {
 	svec_matrix_t vec_to_svec_transform_matrix;
 	vec_to_svec_transform_matrix.setZero();
-	size_t n = AUGMENTED_STATE_VECTOR_SIZE;
-	for (size_t j = 0; j < n; ++j)
+	int n = AUGMENTED_STATE_VECTOR_SIZE;
+	for (int j = 0; j < n; ++j)
 	{
-		for(size_t i = j; i < n; ++i)
+		for(int i = j; i < n; ++i)
 		{
 			critic_augmented_state_kronecker_t uij;
 			uij.setZero();
@@ -228,7 +229,6 @@ void QLearningController::publishControlMellinger(const control_vector_t& contro
 	Vector3d thrust_des;
 	uam_control_msgs::msg::AttitudeSetpoint attitude_setpoint;
 	Vector3d x_c_des;
-	double yaw_des = EIGEN_PI / 2.0;
 	Vector3d z_axis;
 	Vector3d x_B_desired, y_B_desired, z_B_desired;
 	double thrust_proj;
@@ -247,7 +247,7 @@ void QLearningController::publishControlMellinger(const control_vector_t& contro
 	thrust_des = control_vector + Vector3d(0.0,0.0,-9.80665);
 	thrust_proj = thrust_des.dot(-z_axis);
 
-	x_c_des << cos(yaw_des), sin(yaw_des), 0;
+	x_c_des << cos(yaw_des_), sin(yaw_des_), 0;
 	z_B_desired = -thrust_des.normalized();
 	y_B_desired = (z_B_desired.cross(x_c_des)).normalized();
 	x_B_desired = y_B_desired.cross(z_B_desired);

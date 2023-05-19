@@ -143,6 +143,7 @@ private:
 	double learning_update_frequency_;
 	double time_resolution_;
 	double quality_value_;
+	double yaw_des_;
 	svec_matrix_t vec_to_svec_transform_matrix_;
 	bool is_setpoint_new_{true};
 

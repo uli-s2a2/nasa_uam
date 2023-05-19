@@ -15,10 +15,9 @@
 #include "uam_planner/planner_exceptions.hpp"
 #include "uam_mapping_msgs/msg/obstacle_array.hpp"
 
-#define RRTX_CALLBACK_RATE_MS 10
-#define RRTX_PLANNER_MAX_SOLVE_TIME_S 5.0
-#define RRTX_ARENA_BOUNDS_LOW_DEFAULT {-0.5, -0.5, 1.0}
-#define RRTX_ARENA_BOUNDS_HIGH_DEFAULT {4.2672, 4.8768, 1.0}
+#define RRTX_PLANNER_MAX_SOLVE_TIME_S 0.5
+#define RRTX_ARENA_BOUNDS_LOW_DEFAULT {-5.0, -5.0, 0.5}
+#define RRTX_ARENA_BOUNDS_HIGH_DEFAULT {5.0, 5.0, 3.0}
 
 namespace rrtx_static_planner
 {
