@@ -1,0 +1,7 @@
+<library path="crazyflie_rviz_plugins">
+    <class name="crazyflie_rviz2_gui/Crazyflie Interface Panel"
+           type="crazyflie_rviz2_gui::CrazyflieInterfacePanel"
+           base_class_type="rviz_common::Panel">
+        <description>A vehicle interface rviz2 panel.</description>
+    </class>
+</library>

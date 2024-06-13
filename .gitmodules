@@ -1,0 +1,4 @@
+[submodule "autopilot_bridge/crazyflie/crazyswarm2"]
+	path = autopilot_bridge/crazyflie/crazyswarm2
+	url = https://github.com/llanesc/crazyswarm2.git
+	branch = sitl

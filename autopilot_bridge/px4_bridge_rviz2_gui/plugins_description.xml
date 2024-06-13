@@ -1,0 +1,7 @@
+<library path="px4_bridge_rviz_plugins">
+    <class name="px4_bridge_rviz2_gui/Vehicle Interface Panel"
+           type="px4_bridge_rviz2_gui::VehicleInterfacePanel"
+           base_class_type="rviz_common::Panel">
+        <description>A vehicle interface rviz2 panel.</description>
+    </class>
+</library>
