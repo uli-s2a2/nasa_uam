@@ -59,8 +59,10 @@ class ActorCriticMpc(Node):
 
     run_number = 8
     training_number = 1
-    steps = 2359296
+    # steps = 2359296
+    # steps = 2457600
     # steps = 1146880
+    steps = 1835008
     # steps = 1671168
     model_path_zip = importlib.resources.path(f'actor_critic_mpc.saved_models.uam.body_rate_control_quaternion.Run{run_number}.training{training_number}',f'uam_actor_critic_mpc_quadrotor_{steps}_steps.zip')
     model_path_pkl = importlib.resources.path(f'actor_critic_mpc.saved_models.uam.body_rate_control_quaternion.Run{run_number}.training{training_number}',f'uam_actor_critic_mpc_quadrotor_vecnormalize_{steps}_steps.pkl')
@@ -85,12 +87,14 @@ class ActorCriticMpc(Node):
 
         self.last_navigator_msg_stamp = 0.
         self.nav_timeout = 0.5
-        self.motors = self.Motors.MOTOR_CLASSIC
+        self.motors = self.Motors.MOTOR_UPGRADE
 
-        self.m = 0.028
+        self.m = 0.027
         self.g = 9.81
         self.action_std = np.array([2.0, 2.0, 2.0, 1.0*self.g])
         self.action_mean = np.array([0.0, 0.0, 0.0, self.g])
+
+        self.start_time = None
 
         self.attitude_setpoint_publishers = []
         
@@ -163,10 +167,10 @@ class ActorCriticMpc(Node):
         
         # Figure out which agents we need to compute the control for
         agents_to_control = np.where(self.cf_states_ready & self.cf_nav_ready)[0]
-
+            
         obs = self.get_observations(agents_to_control)
         normalized_obs = self.normalize_observation(obs)
-        start_time = time()
+        # start_time = time()
         actions, _ = self.model.predict(self.np_to_torch(normalized_obs).to('cpu'), deterministic=True)
         # self.get_logger().info(f"observation: {obs}")
         # self.get_logger().info(f"normalized_obs: {normalized_obs}")
@@ -184,20 +188,25 @@ class ActorCriticMpc(Node):
         roll_rate, pitch_rate, yaw_rate, normalized_thrust = control.ravel()
         setpoint = AttitudeSetpoint()
         # rpy = euler_from_quaternion([self.agent_states[index].quaternion[-1], self.agent_states[index].quaternion[0], self.agent_states[index].quaternion[1], self.agent_states[index].quaternion[2]])
-        # rpy = Rotation.from_quat([self.agent_states[index].quaternion[1], self.agent_states[index].quaternion[2], self.agent_states[index].quaternion[3], self.agent_states[index].quaternion[0]]).as_euler('XYZ', degrees=True)
-        setpoint.roll = np.clip(np.degrees(roll_rate), -360.0, 360.0)
-        setpoint.pitch = -np.clip(np.degrees(pitch_rate), -360.0, 360.0)
-        setpoint.yaw_rate = -np.clip(np.degrees(yaw_rate), -360.0, 360.0)
-        setpoint.thrust = self.thrust_to_pwm(normalized_thrust * self.m)
+        rpy = Rotation.from_quat([self.agent_states[index].quaternion[1], self.agent_states[index].quaternion[2], self.agent_states[index].quaternion[3], self.agent_states[index].quaternion[0]]).as_euler('XYZ', degrees=True)
+        if self.start_time is None:
+            self.start_time = self.get_clock().now().nanoseconds
+        time = (self.get_clock().now().nanoseconds - self.start_time)/10**9
+        setpoint.roll = np.clip(np.degrees(roll_rate), -30.0, 30.0) * np.tanh(time)
+        setpoint.pitch = np.clip(np.degrees(pitch_rate), -30.0, 30.0) * np.tanh(time)
+        # setpoint.roll = np.clip(np.degrees(roll_rate)*0.05 + rpy[0], -5.0, 5.0)
+        # setpoint.pitch = np.clip(np.degrees(pitch_rate)*0.05 + rpy[1], -5.0, 5.0)
+        # setpoint.yaw_rate = -np.clip(np.degrees(yaw_rate), -30.0, 30.0)
+        setpoint.thrust = int(self.thrust_to_pwm(normalized_thrust * self.m))
         self.attitude_setpoint_publishers[index].publish(setpoint)
 
     def thrust_to_pwm(self, collective_thrust: float) -> int:
         # omega_per_rotor = 7460.8*np.sqrt((collective_thrust / 4.0))
         # pwm_per_rotor = 24.5307*(omega_per_rotor - 380.8359)
         if self.motors == self.Motors.MOTOR_CLASSIC:
-            return int(max(min(24.5307*(7460.8*np.sqrt((collective_thrust / 4.0)) - 380.8359), 65535),0))
+            return max(min(24.5307*(7460.8*np.sqrt((collective_thrust / 4.0)) - 380.8359), 65535),0)
         elif self.motors == self.Motors.MOTOR_UPGRADE:
-            return int(max(min(24.5307*(6462.1*np.sqrt((collective_thrust / 4.0)) - 380.8359), 65535),0))
+            return max(min(24.5307*(6462.1*np.sqrt((collective_thrust / 4.0)) - 380.8359), 65535),0)
         
     @staticmethod
     def _quaternion_to_dcm(q) -> np.ndarray:
