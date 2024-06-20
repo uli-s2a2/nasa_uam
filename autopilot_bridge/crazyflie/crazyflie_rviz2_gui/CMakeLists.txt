@@ -18,6 +18,7 @@ find_package(ament_cmake REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(navigator_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets Test Concurrent UiTools)
@@ -46,6 +47,7 @@ set(${library_name}_dependencies
   geometry_msgs
   navigator_msgs
   nav_msgs
+  visualization_msgs
   Qt5
   rclcpp
   pluginlib
@@ -85,6 +87,7 @@ install(
 
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY resource DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY model DESTINATION share/${PROJECT_NAME})
 
 ament_export_include_directories(include)
 ament_export_targets(${library_name} HAS_LIBRARY_TARGET)
@@ -94,6 +97,7 @@ ament_export_dependencies(
   geometry_msgs
   navigator_msgs
   nav_msgs
+  visualization_msgs
   crazyflie_interfaces
   rclcpp
 )

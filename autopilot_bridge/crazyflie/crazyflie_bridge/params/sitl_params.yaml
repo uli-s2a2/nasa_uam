@@ -28,10 +28,10 @@ planner_server:
     rrtx_static:
       plugin: "rrtx_static_planner::RrtxStatic"
       obstacle_scaling: 2.0
-      range: 0.0
-      bounds_low:  [-0.5, -0.5, 0.9]
-      bounds_high: [8.916, 3.950, 1.1]
-      solve_time: 3.0 # Seconds
+      range: 0.7
+      bounds_low:  [-0.5, -0.5, 0.97]
+      bounds_high: [8.916, 3.950, 1.03]
+      solve_time: 1.0 # Seconds
 
 static_obstacle_advertiser:
   ros__parameters:

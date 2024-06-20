@@ -12,6 +12,7 @@
 
   <depend>navigator_msgs</depend>
   <depend>nav_msgs</depend>
+  <depend>visualization_msgs</depend>
   <depend>crazyflie_interfaces</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>

@@ -30,7 +30,7 @@ class State:
         self.position = np.zeros(3)
         self.velocity = np.zeros(3)
         self.quaternion = np.zeros(4)
-        self.uam_state = np.array([0.5, 0.5, 0.8])
+        self.uam_state = np.array([0.5, 0.5, 1.0])
         self.ready = False
 
     def set_position(self, position):
@@ -57,12 +57,14 @@ class ActorCriticMpc(Node):
         MOTOR_CLASSIC = 1 # https://store.bitcraze.io/products/4-x-7-mm-dc-motor-pack-for-crazyflie-2 w/ standard props
         MOTOR_UPGRADE = 2 # https://store.bitcraze.io/collections/bundles/products/thrust-upgrade-bundle-for-crazyflie-2-x
 
-    run_number = 8
+    run_number = 9
     training_number = 1
     # steps = 2359296
     # steps = 2457600
     # steps = 1146880
-    steps = 1835008
+    # steps = 1835008
+    steps = 753664
+    # steps = 2424832
     # steps = 1671168
     model_path_zip = importlib.resources.path(f'actor_critic_mpc.saved_models.uam.body_rate_control_quaternion.Run{run_number}.training{training_number}',f'uam_actor_critic_mpc_quadrotor_{steps}_steps.zip')
     model_path_pkl = importlib.resources.path(f'actor_critic_mpc.saved_models.uam.body_rate_control_quaternion.Run{run_number}.training{training_number}',f'uam_actor_critic_mpc_quadrotor_vecnormalize_{steps}_steps.pkl')
@@ -87,11 +89,11 @@ class ActorCriticMpc(Node):
 
         self.last_navigator_msg_stamp = 0.
         self.nav_timeout = 0.5
-        self.motors = self.Motors.MOTOR_UPGRADE
+        self.motors = self.Motors.MOTOR_CLASSIC
 
-        self.m = 0.027
+        self.m = 0.025
         self.g = 9.81
-        self.action_std = np.array([2.0, 2.0, 2.0, 1.0*self.g])
+        self.action_std = np.array([0.5, 0.5, 0.3, 0.5*self.g])
         self.action_mean = np.array([0.0, 0.0, 0.0, self.g])
 
         self.start_time = None
@@ -187,16 +189,18 @@ class ActorCriticMpc(Node):
     def publish_control(self, control:np.ndarray, index:int):
         roll_rate, pitch_rate, yaw_rate, normalized_thrust = control.ravel()
         setpoint = AttitudeSetpoint()
-        # rpy = euler_from_quaternion([self.agent_states[index].quaternion[-1], self.agent_states[index].quaternion[0], self.agent_states[index].quaternion[1], self.agent_states[index].quaternion[2]])
+        rpy = euler_from_quaternion([self.agent_states[index].quaternion[-1], self.agent_states[index].quaternion[0], self.agent_states[index].quaternion[1], self.agent_states[index].quaternion[2]])
         rpy = Rotation.from_quat([self.agent_states[index].quaternion[1], self.agent_states[index].quaternion[2], self.agent_states[index].quaternion[3], self.agent_states[index].quaternion[0]]).as_euler('XYZ', degrees=True)
         if self.start_time is None:
             self.start_time = self.get_clock().now().nanoseconds
         time = (self.get_clock().now().nanoseconds - self.start_time)/10**9
-        setpoint.roll = np.clip(np.degrees(roll_rate), -30.0, 30.0) * np.tanh(time)
-        setpoint.pitch = np.clip(np.degrees(pitch_rate), -30.0, 30.0) * np.tanh(time)
-        # setpoint.roll = np.clip(np.degrees(roll_rate)*0.05 + rpy[0], -5.0, 5.0)
-        # setpoint.pitch = np.clip(np.degrees(pitch_rate)*0.05 + rpy[1], -5.0, 5.0)
-        # setpoint.yaw_rate = -np.clip(np.degrees(yaw_rate), -30.0, 30.0)
+        # setpoint.roll = np.clip(np.degrees(roll_rate)*1.1, -300.0, 300.0) * np.tanh(time)
+        # setpoint.pitch = np.clip(np.degrees(pitch_rate)*1.1, -300.0, 300.0) * np.tanh(time)
+        setpoint.roll = np.clip(np.degrees(roll_rate), -360.0, 360.0)
+        setpoint.pitch = np.clip(np.degrees(pitch_rate), -360.0, 360.0)
+        # setpoint.roll = np.clip(np.degrees(roll_rate)*0.1 + rpy[0], -10.0, 10.0)
+        # setpoint.pitch = np.clip(np.degrees(pitch_rate)*0.1 + rpy[1], -10.0, 10.0)
+        setpoint.yaw_rate = -np.clip(np.degrees(yaw_rate), -180.0, 180.0)
         setpoint.thrust = int(self.thrust_to_pwm(normalized_thrust * self.m))
         self.attitude_setpoint_publishers[index].publish(setpoint)
 
